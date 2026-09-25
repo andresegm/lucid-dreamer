@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
-const MAX_MS = 8 * 60 * 1000
+/** Hard cap so a forgotten Record tap cannot run all day. ~5 min ≈ $0.03. */
+export const MAX_RECORD_MS = 5 * 60 * 1000
 
 export function appendTranscript(prev: string, next: string): string {
   const t = next.trim()
@@ -61,7 +62,7 @@ export async function startRecorder(): Promise<Recorder> {
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
   rec.start(250)
 
-  const limit = window.setTimeout(() => { if (rec.state === 'recording') rec.stop() }, MAX_MS)
+  const limit = window.setTimeout(() => { if (rec.state === 'recording') rec.stop() }, MAX_RECORD_MS)
 
   return {
     elapsed: () => Date.now() - started,

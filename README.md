@@ -57,7 +57,7 @@ Any static host works. `npm run build` outputs `app/dist`.
 
 ## 5. Voice (optional)
 
-Write now and New dream have a **Record** button: tap, talk, tap stop. The clip is sent once to Whisper and then discarded — it is never stored.
+Write now and New dream have a **Record** button: tap, talk, tap stop. Recording stops on its own after **5 minutes** so a forgotten tap cannot run all day. The clip is sent once to Whisper and then discarded — it is never stored.
 
 This is **not free**. OpenAI Whisper is about **$0.006 per minute** of audio (a typical morning dump is well under a cent). You need an OpenAI API key with billing enabled.
 
