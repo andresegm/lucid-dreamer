@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, GitMerge, MoreHorizontal, Pencil, Search, Trash2, X } from 'lucide-react'
+import clsx from 'clsx'
 import { deleteTag, fetchTags, mergeTags, renameTag, setTagColor } from '@/lib/api'
 import type { Tag } from '@/lib/types'
 import { TAG_COLOR_PRESETS, tagChipStyle } from '@/lib/format'
@@ -69,7 +70,14 @@ export function TagsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-[var(--gap)]">
           {list.map((t) => (
-            <div key={t.id} className="card card-hover flex items-center gap-2 group relative" style={{ padding: '.6rem .8rem' }}>
+            <div
+              key={t.id}
+              className={clsx(
+                'card card-hover flex items-center gap-2 group relative',
+                (menu === t.id || colorFor === t.id) && 'z-30',
+              )}
+              style={{ padding: '.6rem .8rem' }}
+            >
               {editing === t.id ? (
                 <>
                   <input className="input py-1.5" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void saveRename(t); if (e.key === 'Escape') setEditing(null) }} />
@@ -94,7 +102,7 @@ export function TagsPage() {
                     <MoreHorizontal size={16} />
                   </button>
                   {menu === t.id && (
-                    <div className="absolute z-20 right-2 top-full mt-1 card py-1 min-w-[140px]" style={{ padding: '.35rem' }}>
+                    <div className="absolute z-40 right-2 top-full mt-1 card py-1 min-w-[140px] shadow-xl" style={{ padding: '.35rem', background: 'var(--bg-elev)' }}>
                       <button className="nav-item w-full text-sm" onClick={() => { setMenu(null); setMerging(t); setMergeInto('') }}><GitMerge size={14} /> Merge</button>
                       <button className="nav-item w-full text-sm" onClick={() => { setMenu(null); setEditing(t.id); setDraft(t.name) }}><Pencil size={14} /> Rename</button>
                       <button className="nav-item w-full text-sm text-danger" onClick={() => { setMenu(null); setConfirm(t) }}><Trash2 size={14} /> Delete</button>
@@ -103,7 +111,7 @@ export function TagsPage() {
                 </>
               )}
               {colorFor === t.id && (
-                <div className="absolute z-20 top-full left-2 mt-1 card flex flex-wrap items-center gap-1.5" style={{ padding: '.5rem' }} onMouseLeave={() => setColorFor(null)}>
+                <div className="absolute z-40 top-full left-2 mt-1 card flex flex-wrap items-center gap-1.5 shadow-xl" style={{ padding: '.5rem', background: 'var(--bg-elev)' }} onMouseLeave={() => setColorFor(null)}>
                   {TAG_COLOR_PRESETS.map((hex) => (
                     <button key={hex} type="button" className="h-6 w-6 rounded-full border" style={{ background: hex, borderColor: t.color === hex ? 'var(--text)' : 'transparent' }} onClick={() => { void color(t, hex); setColorFor(null) }} aria-label={hex} />
                   ))}
