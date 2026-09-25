@@ -4,8 +4,10 @@ import { ArrowLeft, Check, Sparkles } from 'lucide-react'
 import { createDream, ensureTags, fetchTags } from '@/lib/api'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
+import { EMOTIONS, isEmotion } from '@/lib/emotions'
 import { appendTranscript } from '@/lib/voice'
 import type { Tag } from '@/lib/types'
+import { EmotionChips } from '@/components/EmotionChips'
 import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
 
@@ -20,6 +22,7 @@ export function CapturePage() {
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>({})
   const ta = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
@@ -34,6 +37,27 @@ export function CapturePage() {
     () => suggestTags(text, allTags, []).filter((s) => s.exists),
     [text, allTags],
   )
+  const impliedEmotions = useMemo(
+    () => new Set(suggestTags(text, allTags, []).filter((s) => isEmotion(s.name)).map((s) => s.name.toLowerCase())),
+    [text, allTags],
+  )
+  const activeEmotions = useMemo(
+    () => EMOTIONS.filter((e) => (e.name in emotionOn ? emotionOn[e.name] : impliedEmotions.has(e.name))),
+    [emotionOn, impliedEmotions],
+  )
+  const saveNames = useMemo(() => {
+    const names = [
+      ...matches.filter((s) => !isEmotion(s.name)).map((s) => s.name),
+      ...activeEmotions.map((e) => e.name),
+    ]
+    const seen = new Set<string>()
+    return names.filter((n) => {
+      const k = n.toLowerCase()
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }, [matches, activeEmotions])
   const canSave = text.trim().length > 0 && !saving
 
   async function save() {
@@ -41,7 +65,7 @@ export function CapturePage() {
     setSaving(true)
     setError(null)
     try {
-      const tags = await ensureTags(matches.map((s) => s.name))
+      const tags = await ensureTags(saveNames)
       const saved = await createDream({
         date,
         title: titleFromDump(text),
@@ -73,7 +97,7 @@ export function CapturePage() {
       induction_notes: '',
       entry_type: 'dream',
       favorite: false,
-      tags: matches.map((s) => s.name),
+      tags: saveNames,
     }
     localStorage.setItem('ldj.draft.new', JSON.stringify(draft))
     localStorage.removeItem(DRAFT_KEY)
@@ -130,12 +154,19 @@ export function CapturePage() {
         onKeyDown={onKey}
       />
 
-      {matches.length > 0 && (
+      <div className="mt-3">
+        <EmotionChips
+          selected={activeEmotions.map((e) => e.name)}
+          onToggle={(name) => setEmotionOn((o) => ({ ...o, [name]: !activeEmotions.some((e) => e.name === name) }))}
+        />
+      </div>
+
+      {saveNames.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 mt-3 text-xs text-muted fade-in">
           <Sparkles size={12} className="text-accent shrink-0" />
           <span>Will tag:</span>
-          {matches.map((s) => (
-            <span key={s.name} className="chip chip-active">{s.name}</span>
+          {saveNames.map((name) => (
+            <span key={name} className="chip chip-active">{name}</span>
           ))}
         </div>
       )}

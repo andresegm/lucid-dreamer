@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Flame, Moon, Sparkles, Star, TrendingUp, Trophy } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite } from '@/lib/api'
+import { EMOTIONS } from '@/lib/emotions'
 import type { DreamLite, Lucidity } from '@/lib/types'
 import { computeStats, trendSeries, type Granularity, type Range } from '@/lib/stats'
 import { fmtDate } from '@/lib/format'
@@ -43,9 +44,13 @@ export function StatsPage() {
       </div>
     )
 
-  const { byLucidity, onlyDreams, lucidCount, induction, streaks, weekday, topTags, perWeek, bestMonth, favorites } = stats
+  const { byLucidity, onlyDreams, shown, lucidCount, induction, streaks, weekday, topTags, pairs, perWeek, bestMonth, favorites } = stats
   const total = onlyDreams.length
   const lucidPct = total ? Math.round((lucidCount / total) * 100) : 0
+  const emotionHits = EMOTIONS.map((e) => ({
+    ...e,
+    n: shown.filter((d) => d.tags.some((t) => t.name.toLowerCase() === e.name)).length,
+  })).filter((e) => e.n > 0)
 
   const lucSlices: Slice[] = [
     { name: 'Lucid', value: byLucidity.lucid, color: COLORS.lucid },
@@ -180,6 +185,50 @@ export function StatsPage() {
             <div className="text-sm text-faint py-10 text-center">No tags yet — add some when you record a dream.</div>
           )}
         </div>
+      </div>
+
+      <div className="card mt-4">
+        <h2 className="font-semibold mb-1">What shows up together</h2>
+        <p className="text-xs text-muted mb-3">Tag pairs that appear more often than chance. × is lift — 2× means twice the independent rate. Click a pair to open those dreams.</p>
+        {pairs.length ? (
+          <ul className="grid sm:grid-cols-2 gap-2">
+            {pairs.map((p) => (
+              <li key={`${p.a.id}-${p.b.id}`}>
+                <button
+                  type="button"
+                  className="w-full text-left card card-hover"
+                  style={{ padding: '.65rem .8rem' }}
+                  onClick={() => navigate(`/?tags=${p.a.id},${p.b.id}&tm=all`)}
+                >
+                  <div className="font-medium truncate">{p.a.name} <span className="text-faint font-normal">·</span> {p.b.name}</div>
+                  <div className="text-xs text-muted mt-0.5 tabular-nums">{p.together} dreams · {p.lift.toFixed(1)}×</div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-sm text-faint py-8 text-center">Need more overlapping tags in this range.</div>
+        )}
+        {emotionHits.length > 0 && (
+          <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="text-xs text-muted mb-2">Emotions tagged in this range</div>
+            <div className="flex flex-wrap gap-1.5">
+              {emotionHits.map((e) => (
+                <button
+                  key={e.name}
+                  type="button"
+                  className="chip chip-btn"
+                  onClick={() => {
+                    const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === e.name)?.id
+                    if (id) navigate(`/?tags=${id}`)
+                  }}
+                >
+                  {e.label} <span className="tabular-nums text-faint">{e.n}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

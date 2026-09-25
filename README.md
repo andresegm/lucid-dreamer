@@ -76,7 +76,7 @@ Until that function is deployed, Record will show an error instead of text.
 - **Dreams list** — pagination, full-text search, filters for date range, lucidity, induction method, tags (any/all), favorites, notes; sort newest/oldest/title. Filters live in the URL so they survive refresh and can be bookmarked.
 - **Dream detail** — favorite, edit, delete (with confirmation). Tags link to a filtered list.
 - **New / edit dream** — date defaults to today (change freely), entry type (dream/note), lucidity, induction method (DILD, MILD, WBTB, WILD, DEILD, EILD, SSILD, FILD or custom) with notes, tag picker that creates tags inline, auto-saving draft. Write now and New dream can **Record** a voice dump (transcribed, audio discarded).
-- **Stats** — lucidity ring, induction-method ring, dreams-over-time (month/year, toggle series), recall by weekday, top tags, streaks, per-week rate; range 30d / 3m / 6m / 1y / all.
+- **Stats** — lucidity ring, induction-method ring, dreams-over-time (month/year, toggle series), recall by weekday, top tags, tag-pair correlations (count + lift), emotion tags in range, streaks, per-week rate; range 30d / 3m / 6m / 1y / all.
 - **Tags** — rename, delete, see usage counts.
 - **Settings** — accent color (presets or custom), dark/light/system theme, density, page size, default sort, card previews, auto-lock; export everything as TXT / JSON / CSV.
 

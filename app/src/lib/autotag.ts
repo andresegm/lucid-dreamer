@@ -66,6 +66,15 @@ export const KEYWORD_RULES: Rule[] = [
   { tag: 'intimacy', pattern: ci('kiss|kissed|kissing|sex|making out|made out') },
   { tag: 'teleportation', pattern: ci('teleport|teleported|teleporting|teleportation') },
   { tag: 'nightmare', pattern: ci('nightmares?') },
+  // Emotions (optional analysis tags — also offered as chips when writing)
+  { tag: 'fear', pattern: ci('fear|afraid|scared|terrified|frightening|horror') },
+  { tag: 'anxiety', pattern: ci('anxiety|anxious|worried|panic|panicked') },
+  { tag: 'anger', pattern: ci('anger|angry|furious|rage') },
+  { tag: 'sadness', pattern: ci('sadness|sad|crying|grief|heartbroken') },
+  { tag: 'joy', pattern: ci('joy|happy|happiness|elated|euphoric') },
+  { tag: 'awe', pattern: ci('awe|wonder|amazed|wonderstruck') },
+  { tag: 'confusion', pattern: ci('confusion|confused|disoriented') },
+  { tag: 'shame', pattern: ci('shame|embarrassed|humiliated') },
   // Lucid-dreaming technique (acronyms are case-sensitive)
   { tag: 'false awakening', pattern: cs('FAs?|[Ff]alse [Aa]wakenings?') },
   { tag: 'reality check', pattern: cs('RCs?|[Rr]eality [Cc]hecks?') },

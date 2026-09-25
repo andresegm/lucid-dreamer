@@ -79,6 +79,7 @@ export function computeStats({ dreams, range, includeNotes, series }: StatsInput
     tagCounts.set(t.id, e)
   }
   const topTags = Array.from(tagCounts.values()).sort((a, b) => b.n - a.n).slice(0, 10)
+  const pairs = tagPairs(shown, shown.length >= 80 ? 3 : 2, 12)
 
   const streaks = computeStreaks(inRange.map((d) => d.date))
 
@@ -91,7 +92,56 @@ export function computeStats({ dreams, range, includeNotes, series }: StatsInput
   for (const d of onlyDreams) monthCounts.set(d.date.slice(0, 7), (monthCounts.get(d.date.slice(0, 7)) ?? 0) + 1)
   const bestMonth = Array.from(monthCounts.entries()).sort((a, b) => b[1] - a[1])[0] ?? null
 
-  return { inRange, onlyDreams, shown, byLucidity, lucidCount, induction, autoGranularity, weekday, topTags, streaks, perWeek, bestMonth, favorites: onlyDreams.filter((d) => d.favorite).length }
+  return { inRange, onlyDreams, shown, byLucidity, lucidCount, induction, autoGranularity, weekday, topTags, pairs, streaks, perWeek, bestMonth, favorites: onlyDreams.filter((d) => d.favorite).length }
+}
+
+export interface TagPair {
+  a: { id: string; name: string }
+  b: { id: string; name: string }
+  together: number
+  lift: number
+}
+
+/** Pairs that show up together more often than chance. Lift 2 = twice the independent rate. */
+export function tagPairs(shown: DreamLite[], minTogether = 3, limit = 12): TagPair[] {
+  const n = shown.length
+  if (n < 8) return []
+  const counts = new Map<string, { id: string; name: string; n: number }>()
+  const together = new Map<string, number>()
+
+  for (const d of shown) {
+    const seen = new Set<string>()
+    const tags = d.tags.filter((t) => {
+      if (seen.has(t.id)) return false
+      seen.add(t.id)
+      return true
+    })
+    for (const t of tags) {
+      const e = counts.get(t.id) ?? { id: t.id, name: t.name, n: 0 }
+      e.n++
+      counts.set(t.id, e)
+    }
+    for (let i = 0; i < tags.length; i++) {
+      for (let j = i + 1; j < tags.length; j++) {
+        const [x, y] = tags[i].id < tags[j].id ? [tags[i], tags[j]] : [tags[j], tags[i]]
+        const key = `${x.id}|${y.id}`
+        together.set(key, (together.get(key) ?? 0) + 1)
+      }
+    }
+  }
+
+  const out: TagPair[] = []
+  for (const [key, both] of together) {
+    if (both < minTogether) continue
+    const [idA, idB] = key.split('|')
+    const a = counts.get(idA)
+    const b = counts.get(idB)
+    if (!a || !b) continue
+    const lift = (both * n) / (a.n * b.n)
+    if (lift < 1.25) continue
+    out.push({ a: { id: a.id, name: a.name }, b: { id: b.id, name: b.name }, together: both, lift })
+  }
+  return out.sort((x, y) => y.lift - x.lift || y.together - x.together).slice(0, limit)
 }
 
 export function trendSeries(shown: DreamLite[], granularity: Granularity, range: Range) {

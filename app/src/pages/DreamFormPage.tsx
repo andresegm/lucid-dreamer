@@ -10,6 +10,7 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
+import { EmotionChips } from '@/components/EmotionChips'
 import { VoiceRecord } from '@/components/VoiceRecord'
 
 interface FormState {
@@ -224,6 +225,16 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         )}
 
         <Field label="Tags" hint="Characters, places, dream signs, themes… Enter to add; new tags are created automatically.">
+          <div className="mb-3">
+            <EmotionChips
+              selected={f.tags}
+              onToggle={(name) => {
+                const has = f.tags.some((t) => t.toLowerCase() === name)
+                if (has) onTagsChange(f.tags.filter((t) => t.toLowerCase() !== name))
+                else onTagsChange([...f.tags, name])
+              }}
+            />
+          </div>
           <TagPicker all={allTags} selected={f.tags} onChange={onTagsChange} />
           {autoAdded.length > 0 && (
             <div className="flex items-center gap-1.5 mt-2 text-xs text-muted fade-in">
