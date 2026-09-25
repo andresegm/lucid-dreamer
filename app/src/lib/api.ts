@@ -245,6 +245,24 @@ export async function fetchRelatedDreams(
     .map(([id, shared]) => ({ dream: mapped.get(id)!, shared }))
 }
 
+/** Add tags without replacing ones already on the dream. */
+export async function appendDreamTags(rows: { dream_id: string; tag_id: string }[]): Promise<void> {
+  const seen = new Set<string>()
+  const unique = rows.filter((r) => {
+    const k = `${r.dream_id}:${r.tag_id}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+  for (let i = 0; i < unique.length; i += 150) {
+    const chunk = unique.slice(i, i + 150)
+    const { error } = await supabase
+      .from('dream_tags')
+      .upsert(chunk, { onConflict: 'dream_id,tag_id', ignoreDuplicates: true })
+    if (error) throw error
+  }
+}
+
 /** Everything, for export. */
 export async function fetchAllFull(): Promise<Dream[]> {
   const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).order('date', { ascending: true })

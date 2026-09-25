@@ -6,12 +6,19 @@ import { useAuth } from '@/lib/auth'
 import { fetchAllFull } from '@/lib/api'
 import type { SortOrder } from '@/lib/types'
 import { Field, PageHeader, Segmented, Spinner, Switch } from '@/components/ui'
+import { EmotionScan } from '@/components/EmotionScan'
 import { fmtDate } from '@/lib/format'
 
 export function SettingsPage() {
   const { settings, update, reset } = useSettings()
   const { signOut } = useAuth()
   const [exporting, setExporting] = useState<null | 'json' | 'txt' | 'csv'>(null)
+
+  useEffect(() => {
+    if (window.location.hash === '#emotion-scan') {
+      document.getElementById('emotion-scan')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [])
 
   async function exportAs(kind: 'json' | 'txt' | 'csv') {
     setExporting(kind)
@@ -100,6 +107,10 @@ export function SettingsPage() {
         <Field label="Auto-tagging" hint={{ auto: 'Matching tags are added while you write. Remove one and it stays removed.', suggest: 'Matching tags are shown as chips under the tag field; click to add.', off: 'Tags are only added manually.' }[settings.autoTag]}>
           <Segmented<AutoTagMode> value={settings.autoTag} onChange={(autoTag) => update({ autoTag })} options={[{ value: 'auto', label: 'Automatic' }, { value: 'suggest', label: 'Suggest' }, { value: 'off', label: 'Off' }]} />
         </Field>
+      </section>
+
+      <section className="card mb-4">
+        <EmotionScan />
       </section>
 
       <section className="card mb-4">

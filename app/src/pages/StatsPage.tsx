@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Flame, Moon, Sparkles, Star, TrendingUp, Trophy } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite } from '@/lib/api'
@@ -7,7 +7,7 @@ import { EMOTIONS } from '@/lib/emotions'
 import type { DreamLite, Lucidity } from '@/lib/types'
 import { computeStats, trendSeries, type Granularity, type Range } from '@/lib/stats'
 import { fmtDate } from '@/lib/format'
-import { HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
+import { EmotionRadar, HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
 import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
@@ -47,10 +47,12 @@ export function StatsPage() {
   const { byLucidity, onlyDreams, shown, lucidCount, induction, streaks, weekday, topTags, pairs, perWeek, bestMonth, favorites } = stats
   const total = onlyDreams.length
   const lucidPct = total ? Math.round((lucidCount / total) * 100) : 0
-  const emotionHits = EMOTIONS.map((e) => ({
+  const emotionCounts = EMOTIONS.map((e) => ({
     ...e,
     n: shown.filter((d) => d.tags.some((t) => t.name.toLowerCase() === e.name)).length,
-  })).filter((e) => e.n > 0)
+  }))
+  const emotionHits = emotionCounts.filter((e) => e.n > 0)
+  const emotionDreams = shown.filter((d) => d.tags.some((t) => EMOTIONS.some((e) => e.name === t.name.toLowerCase()))).length
 
   const lucSlices: Slice[] = [
     { name: 'Lucid', value: byLucidity.lucid, color: COLORS.lucid },
@@ -188,6 +190,46 @@ export function StatsPage() {
       </div>
 
       <div className="card mt-4">
+        <h2 className="font-semibold mb-1">How dreams felt</h2>
+        <p className="text-xs text-muted mb-3">
+          Each spoke is a feeling. The shape stretches toward whatever you tagged most in this range.
+          {emotionDreams ? ` ${emotionDreams} ${emotionDreams === 1 ? 'dream' : 'dreams'} tagged.` : ''}
+        </p>
+        {emotionHits.length ? (
+          <div className="grid sm:grid-cols-[1fr_auto] gap-4 items-center">
+            <EmotionRadar
+              items={emotionCounts}
+              onSelect={(name) => {
+                const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === name)?.id
+                if (id) navigate(`/?tags=${id}`)
+              }}
+            />
+            <div className="flex flex-wrap sm:flex-col gap-1.5 sm:min-w-[8rem]">
+              {emotionHits.map((e) => (
+                <button
+                  key={e.name}
+                  type="button"
+                  className="chip chip-btn"
+                  onClick={() => {
+                    const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === e.name)?.id
+                    if (id) navigate(`/?tags=${id}`)
+                  }}
+                >
+                  {e.label} <span className="tabular-nums text-faint">{e.n}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-faint py-8 text-center">
+            No feeling tags in this range yet.{' '}
+            <Link to="/settings#emotion-scan" className="text-accent hover:underline">Scan older dreams</Link>
+            {' '}or tap chips the next time you write.
+          </div>
+        )}
+      </div>
+
+      <div className="card mt-4">
         <h2 className="font-semibold mb-1">What shows up together</h2>
         <p className="text-xs text-muted mb-3">Tag pairs that appear more often than chance. × is lift — 2× means twice the independent rate. Click a pair to open those dreams.</p>
         {pairs.length ? (
@@ -208,26 +250,6 @@ export function StatsPage() {
           </ul>
         ) : (
           <div className="text-sm text-faint py-8 text-center">Need more overlapping tags in this range.</div>
-        )}
-        {emotionHits.length > 0 && (
-          <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-            <div className="text-xs text-muted mb-2">Emotions tagged in this range</div>
-            <div className="flex flex-wrap gap-1.5">
-              {emotionHits.map((e) => (
-                <button
-                  key={e.name}
-                  type="button"
-                  className="chip chip-btn"
-                  onClick={() => {
-                    const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === e.name)?.id
-                    if (id) navigate(`/?tags=${id}`)
-                  }}
-                >
-                  {e.label} <span className="tabular-nums text-faint">{e.n}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         )}
       </div>
     </div>

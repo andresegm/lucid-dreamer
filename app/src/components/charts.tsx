@@ -107,6 +107,74 @@ function BarTip({ active, payload, label }: any) {
   )
 }
 
+export function EmotionRadar({
+  items,
+  onSelect,
+}: {
+  items: { name: string; label: string; n: number }[]
+  onSelect?: (name: string) => void
+}) {
+  const size = 320
+  const cx = size / 2
+  const cy = size / 2
+  const maxR = 104
+  const labelR = 132
+  const maxN = Math.max(1, ...items.map((i) => i.n))
+  const n = items.length
+  const angle = (i: number) => (-Math.PI / 2) + (i * 2 * Math.PI) / n
+  const pt = (i: number, r: number) => ({ x: cx + r * Math.cos(angle(i)), y: cy + r * Math.sin(angle(i)) })
+  const ring = (t: number) => items.map((_, i) => { const p = pt(i, maxR * t); return `${p.x},${p.y}` }).join(' ')
+  const shape = items.map((it, i) => pt(i, (it.n / maxN) * maxR))
+  const shapeD = shape.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z'
+  const total = items.reduce((a, b) => a + b.n, 0)
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[320px] mx-auto" role="img" aria-label="Emotion radar">
+      {[1 / 3, 2 / 3, 1].map((t) => (
+        <polygon key={t} points={ring(t)} fill="none" stroke="var(--border)" strokeWidth="1" />
+      ))}
+      {items.map((_, i) => {
+        const p = pt(i, maxR)
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="var(--border)" strokeWidth="1" />
+      })}
+      {total > 0 && (
+        <path
+          d={shapeD}
+          fill="color-mix(in srgb, var(--accent) 28%, transparent)"
+          stroke="var(--accent)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      )}
+      {items.map((it, i) => {
+        const p = pt(i, (it.n / maxN) * maxR)
+        if (!it.n) return null
+        return <circle key={it.name} cx={p.x} cy={p.y} r="3.5" fill="var(--accent)" />
+      })}
+      {items.map((it, i) => {
+        const p = pt(i, labelR)
+        const anchor = Math.abs(Math.cos(angle(i))) < 0.2 ? 'middle' : Math.cos(angle(i)) > 0 ? 'start' : 'end'
+        const clickable = !!onSelect && it.n > 0
+        return (
+          <text
+            key={it.name}
+            x={p.x}
+            y={p.y}
+            textAnchor={anchor}
+            dominantBaseline="middle"
+            className="text-[11px]"
+            fill={it.n ? 'var(--text)' : 'var(--text-faint)'}
+            style={{ cursor: clickable ? 'pointer' : 'default', fontWeight: it.n ? 600 : 400 }}
+            onClick={clickable ? () => onSelect(it.name) : undefined}
+          >
+            {it.label}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function HBarList({ items, max, color = 'var(--accent)' }: { items: { label: string; value: number; onClick?: () => void }[]; max?: number; color?: string }) {
   const m = max ?? Math.max(1, ...items.map((i) => i.value))
   return (
