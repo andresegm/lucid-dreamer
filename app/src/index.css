@@ -67,6 +67,20 @@
 
 /* ---------- Base ---------- */
 html, body, #root { height: 100%; overflow-x: clip; }
+
+/* Clear the notch / status bar so titles and header buttons stay tappable. */
+.app-main {
+  padding-top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 0.85rem));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 768px) {
+  .app-main {
+    padding-top: 2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
 body {
   margin: 0;
   background: var(--bg);
