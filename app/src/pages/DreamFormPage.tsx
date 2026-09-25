@@ -5,10 +5,12 @@ import clsx from 'clsx'
 import { createDream, ensureTags, fetchDream, fetchTags, updateDream } from '@/lib/api'
 import { INDUCTION_DESCRIPTIONS, INDUCTION_METHODS, LUCIDITY_OPTIONS, type EntryType, type Lucidity, type Tag } from '@/lib/types'
 import { todayISO, wordCount } from '@/lib/format'
+import { appendTranscript } from '@/lib/voice'
 import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
+import { VoiceRecord } from '@/components/VoiceRecord'
 
 interface FormState {
   date: string
@@ -248,6 +250,9 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         </Field>
 
         <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
+          <div className="flex justify-end mb-2">
+            <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
+          </div>
           <AutoTextarea value={f.description} onChange={(v) => set('description', v)} placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…" />
           <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
         </Field>

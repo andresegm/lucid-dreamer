@@ -2,7 +2,7 @@
 
 A private, passcode-locked dream journal. React + Vite + Tailwind on the front end, Supabase (Postgres + Auth) on the back end.
 
-The repo is just `app/` (Vite + React + TypeScript). The live Supabase project already has the tables.
+The repo is `app/` (Vite + React + TypeScript) plus `supabase/functions/transcribe` for optional voice notes. The live Supabase project already has the tables.
 
 ## 1. Which Supabase keys to use
 
@@ -55,12 +55,27 @@ Any static host works. `npm run build` outputs `app/dist`.
   - Vercel: create `app/vercel.json` with `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`
 - Then in Supabase → **Authentication → URL Configuration**, add your deployed URL to **Site URL / Redirect URLs**.
 
+## 5. Voice (optional)
+
+Write now and New dream have a **Record** button: tap, talk, tap stop. The clip is sent once to Whisper and then discarded — it is never stored.
+
+This is **not free**. OpenAI Whisper is about **$0.006 per minute** of audio (a typical morning dump is well under a cent). You need an OpenAI API key with billing enabled.
+
+One-time setup (from the repo root, after `npx supabase login` and linking this project):
+
+```bash
+npx supabase secrets set OPENAI_API_KEY=sk-...
+npx supabase functions deploy transcribe
+```
+
+Until that function is deployed, Record will show an error instead of text.
+
 ## Features
 
 - **Passcode lock** — Supabase email/password under the hood; optional auto-lock after inactivity.
 - **Dreams list** — pagination, full-text search, filters for date range, lucidity, induction method, tags (any/all), favorites, notes; sort newest/oldest/title. Filters live in the URL so they survive refresh and can be bookmarked.
 - **Dream detail** — favorite, edit, delete (with confirmation). Tags link to a filtered list.
-- **New / edit dream** — date defaults to today (change freely), entry type (dream/note), lucidity, induction method (DILD, MILD, WBTB, WILD, DEILD, EILD, SSILD, FILD or custom) with notes, tag picker that creates tags inline, auto-saving draft.
+- **New / edit dream** — date defaults to today (change freely), entry type (dream/note), lucidity, induction method (DILD, MILD, WBTB, WILD, DEILD, EILD, SSILD, FILD or custom) with notes, tag picker that creates tags inline, auto-saving draft. Write now and New dream can **Record** a voice dump (transcribed, audio discarded).
 - **Stats** — lucidity ring, induction-method ring, dreams-over-time (month/year, toggle series), recall by weekday, top tags, streaks, per-week rate; range 30d / 3m / 6m / 1y / all.
 - **Tags** — rename, delete, see usage counts.
 - **Settings** — accent color (presets or custom), dark/light/system theme, density, page size, default sort, card previews, auto-lock; export everything as TXT / JSON / CSV.

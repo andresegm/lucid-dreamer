@@ -4,7 +4,9 @@ import { ArrowLeft, Check, Sparkles } from 'lucide-react'
 import { createDream, ensureTags, fetchTags } from '@/lib/api'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
+import { appendTranscript } from '@/lib/voice'
 import type { Tag } from '@/lib/types'
+import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
 
 const DRAFT_KEY = 'ldj.draft.capture'
@@ -113,6 +115,10 @@ export function CapturePage() {
           <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
         )}
         <span className="ml-auto text-xs text-faint tabular-nums">{words} words · ⌘ Enter to save</span>
+      </div>
+
+      <div className="flex justify-end mb-2">
+        <VoiceRecord onTranscript={(t) => setText((prev) => appendTranscript(prev, t))} />
       </div>
 
       <textarea
