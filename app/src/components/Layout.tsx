@@ -47,7 +47,7 @@ export function Layout() {
       </aside>
 
       {/* Main */}
-      <main className="relative z-10 min-w-0 px-4 pt-5 pb-28 md:px-8 md:py-8 max-w-6xl w-full mx-auto">
+      <main className="relative z-10 min-w-0 overflow-x-clip px-4 pt-5 pb-28 md:px-8 md:py-8 max-w-6xl w-full mx-auto">
         <Outlet />
       </main>
 

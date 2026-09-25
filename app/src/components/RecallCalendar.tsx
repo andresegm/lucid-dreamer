@@ -37,18 +37,18 @@ export function RecallCalendar({ dreams, range, onSelectDay }: { dreams: DreamLi
   if (!years.length) return null
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-3">
+    <div className="card min-w-0 max-w-full overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
         <h2 className="font-semibold">Recall calendar</h2>
         <span className="text-xs text-muted">{totalDays.toLocaleString()} days with an entry</span>
       </div>
       <p className="text-xs text-muted mb-4">Each square is a morning. Click a day to open those dreams.</p>
-      <div className="grid gap-6">
+      <div className="grid gap-6 min-w-0">
         {years.map((y) => (
           <YearRow key={y} year={y} byDate={byDate} onSelectDay={onSelectDay} />
         ))}
       </div>
-      <div className="flex items-center gap-2 mt-4 text-[11px] text-faint">
+      <div className="flex flex-wrap items-center gap-2 mt-4 text-[11px] text-faint">
         <span>Less</span>
         <span className="cal-cell" data-level="0" />
         <span className="cal-cell" data-level="1" />
@@ -65,51 +65,52 @@ function YearRow({ year, byDate, onSelectDay }: { year: number; byDate: Map<stri
   const [tip, setTip] = useState<{ iso: string; x: number; y: number } | null>(null)
   const { weeks, monthMarks } = useMemo(() => buildYear(year), [year])
   return (
-    <div>
+    <div className="cal-year min-w-0">
       <div className="text-xs font-semibold text-muted mb-1.5 tabular-nums">{year}</div>
-      <div className="overflow-x-auto pb-1">
-        <div className="inline-block min-w-max">
-          <div className="flex gap-[3px] mb-1 pl-[22px]">
-            {weeks.map((_, i) => (
-              <div key={i} className="cal-cell text-[9px] text-faint leading-none overflow-visible" style={{ background: 'transparent', border: 'none', height: 'auto' }}>
-                {monthMarks[i] ?? ''}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-[3px]">
-            <div className="flex flex-col gap-[3px] mr-1 w-[18px] text-[9px] text-faint leading-[11px]">
-              <span />
-              <span>M</span>
-              <span />
-              <span>W</span>
-              <span />
-              <span>F</span>
-              <span />
+      <div className="grid min-w-0 gap-x-1" style={{ gridTemplateColumns: '12px minmax(0, 1fr)' }}>
+        <div />
+        <div className="relative h-3 min-w-0 mb-0.5">
+          {monthMarks.map((m, i) =>
+            m ? (
+              <span key={i} className="absolute text-[9px] text-faint leading-none" style={{ left: `${(i / weeks.length) * 100}%` }}>
+                {m}
+              </span>
+            ) : null,
+          )}
+        </div>
+        <div className="flex flex-col justify-between text-[9px] text-faint leading-none py-px">
+          <span />
+          <span>M</span>
+          <span />
+          <span>W</span>
+          <span />
+          <span>F</span>
+          <span />
+        </div>
+        <div className="grid min-w-0" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`, gap: 2 }}>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="grid min-w-0" style={{ gridTemplateRows: 'repeat(7, minmax(0, 1fr))', gap: 2 }}>
+              {week.map((iso, di) => {
+                if (!iso) return <span key={di} className="cal-cell" data-empty="true" />
+                const info = byDate.get(iso)
+                const level = !info ? 0 : info.count >= 3 ? 3 : info.count
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    className={clsx('cal-cell', info && 'cursor-pointer')}
+                    data-level={level}
+                    data-lucid={info && info.lucid > 0 ? 'true' : undefined}
+                    disabled={!info}
+                    aria-label={iso}
+                    onMouseEnter={(e) => setTip({ iso, x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => setTip(null)}
+                    onClick={() => info && onSelectDay(iso)}
+                  />
+                )
+              })}
             </div>
-            {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-[3px]">
-                {week.map((iso, di) => {
-                  if (!iso) return <span key={di} className="cal-cell" data-empty="true" />
-                  const info = byDate.get(iso)
-                  const level = !info ? 0 : info.count >= 3 ? 3 : info.count
-                  return (
-                    <button
-                      key={iso}
-                      type="button"
-                      className={clsx('cal-cell', info && 'cursor-pointer')}
-                      data-level={level}
-                      data-lucid={info && info.lucid > 0 ? 'true' : undefined}
-                      disabled={!info}
-                      aria-label={iso}
-                      onMouseEnter={(e) => setTip({ iso, x: e.clientX, y: e.clientY })}
-                      onMouseLeave={() => setTip(null)}
-                      onClick={() => info && onSelectDay(iso)}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
       {tip && (

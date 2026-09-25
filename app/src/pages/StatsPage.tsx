@@ -135,7 +135,7 @@ export function StatsPage() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 min-w-0">
         <RecallCalendar
           dreams={(data ?? []).filter((d) => prefs.includeNotes || d.entry_type === 'dream')}
           range={prefs.range}

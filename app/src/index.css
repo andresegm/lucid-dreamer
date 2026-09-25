@@ -66,7 +66,7 @@
 }
 
 /* ---------- Base ---------- */
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; overflow-x: clip; }
 body {
   margin: 0;
   background: var(--bg);
@@ -168,6 +168,9 @@ textarea.input { resize: vertical; line-height: 1.6; }
 .cal-cell {
   width: 11px; height: 11px; border-radius: 2px; padding: 0; display: block;
   background: var(--bg-elev-2); border: 1px solid var(--border);
+}
+.cal-year .cal-cell {
+  width: 100%; height: auto; aspect-ratio: 1; min-width: 0;
 }
 .cal-cell[data-empty="true"] { visibility: hidden; border: none; background: transparent; }
 .cal-cell[data-level="0"] { background: var(--bg-elev-2); }
