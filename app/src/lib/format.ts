@@ -44,3 +44,14 @@ export function titleFromDump(text: string): string {
 export function pluralize(n: number, one: string, many = one + 's'): string {
   return `${n} ${n === 1 ? one : many}`
 }
+
+export const TAG_COLOR_PRESETS = ['#7c6cf6', '#5b7cfa', '#38bdf8', '#34d399', '#f6b26c', '#fb7185', '#e879f9', '#94a3b8']
+
+export function tagChipStyle(color: string | null | undefined): { borderColor: string; background: string; color: string } | undefined {
+  if (!color) return undefined
+  return {
+    borderColor: color,
+    background: `color-mix(in srgb, ${color} 18%, transparent)`,
+    color,
+  }
+}

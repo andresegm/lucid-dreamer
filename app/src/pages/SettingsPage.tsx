@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Check, Download, LogOut, RotateCcw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, Download, LogOut, RotateCcw, Smartphone } from 'lucide-react'
 import clsx from 'clsx'
 import { ACCENT_PRESETS, useSettings, type AutoTagMode, type Density, type Theme } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
@@ -102,6 +102,12 @@ export function SettingsPage() {
       </section>
 
       <section className="card mb-4">
+        <h2 className="font-semibold mb-1">Install on your phone</h2>
+        <p className="text-xs text-muted mb-3">Add Lucid to your home screen so you can write from bed. The dump screen still saves a draft on this device if you’re offline.</p>
+        <InstallApp />
+      </section>
+
+      <section className="card mb-4">
         <h2 className="font-semibold mb-1">Privacy</h2>
         <p className="text-xs text-muted mb-4">Automatically lock the journal after a period of inactivity.</p>
         <Field label="Auto-lock">
@@ -127,4 +133,39 @@ export function SettingsPage() {
       </div>
     </div>
   )
+}
+
+type BeforeInstall = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
+
+function InstallApp() {
+  const [prompt, setPrompt] = useState<BeforeInstall | null>(null)
+  const [standalone, setStandalone] = useState(false)
+  const ios = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+
+  useEffect(() => {
+    const standaloneNow = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone))
+    setStandalone(standaloneNow)
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setPrompt(e as BeforeInstall)
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', () => setStandalone(true))
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
+  }, [])
+
+  if (standalone) {
+    return <p className="text-sm text-muted">This device already has Lucid installed.</p>
+  }
+  if (prompt) {
+    return (
+      <button className="btn btn-primary" onClick={() => void prompt.prompt()}>
+        <Smartphone size={16} /> Add to home screen
+      </button>
+    )
+  }
+  if (ios) {
+    return <p className="text-sm text-muted">In Safari: tap Share, then <b>Add to Home Screen</b>.</p>
+  }
+  return <p className="text-sm text-muted">Open this site in Chrome or Edge, then use the browser menu → <b>Install app</b> / <b>Add to home screen</b>. The install button appears here once the browser offers it (after a production deploy).</p>
 }

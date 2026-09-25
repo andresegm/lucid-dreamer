@@ -162,6 +162,27 @@ export async function deleteTag(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function setTagColor(id: string, color: string | null): Promise<void> {
+  const { error } = await supabase.from('tags').update({ color }).eq('id', id)
+  if (error) throw error
+}
+
+/** Move every dream from `fromId` onto `intoId`, then delete `fromId`. */
+export async function mergeTags(fromId: string, intoId: string): Promise<void> {
+  if (fromId === intoId) return
+  const { data, error } = await supabase.from('dream_tags').select('dream_id').eq('tag_id', fromId)
+  if (error) throw error
+  const ids = Array.from(new Set((data ?? []).map((r) => r.dream_id)))
+  if (ids.length) {
+    const { error: insErr } = await supabase
+      .from('dream_tags')
+      .upsert(ids.map((dream_id) => ({ dream_id, tag_id: intoId })), { onConflict: 'dream_id,tag_id', ignoreDuplicates: true })
+    if (insErr) throw insErr
+  }
+  const { error: delErr } = await supabase.from('tags').delete().eq('id', fromId)
+  if (delErr) throw delErr
+}
+
 /** Other dreams that share the most tags with this one, newest first among ties. */
 export async function fetchRelatedDreams(
   dreamId: string,

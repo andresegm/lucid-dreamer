@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Star, StickyNote } from 'lucide-react'
 import clsx from 'clsx'
 import type { Dream } from '@/lib/types'
-import { excerpt, fmtDate, lucidityClass, lucidityLabel } from '@/lib/format'
+import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/lib/format'
 
 export function DreamCard({ dream, showPreview, onToggleFavorite }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void }) {
   const isNote = dream.entry_type === 'note'
@@ -35,7 +35,7 @@ export function DreamCard({ dream, showPreview, onToggleFavorite }: { dream: Dre
             )}
             {dream.induction_method && <span className="chip">{dream.induction_method}</span>}
             {dream.tags.slice(0, 4).map((t) => (
-              <span key={t.id} className="chip">{t.name}</span>
+              <span key={t.id} className="chip" style={tagChipStyle(t.color)}>{t.name}</span>
             ))}
             {dream.tags.length > 4 && <span className="chip text-faint">+{dream.tags.length - 4}</span>}
           </div>

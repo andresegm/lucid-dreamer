@@ -5,7 +5,7 @@ import clsx from 'clsx'
 import { deleteDream, fetchDream, fetchRelatedDreams, setFavorite } from '@/lib/api'
 import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
-import { excerpt, fmtDate, lucidityClass, lucidityLabel, wordCount } from '@/lib/format'
+import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle, wordCount } from '@/lib/format'
 import { ErrorBox, Skeleton } from '@/components/ui'
 
 export function DreamDetailPage() {
@@ -91,7 +91,7 @@ export function DreamDetailPage() {
           </span>
         )}
         {dream.tags.map((t) => (
-          <Link key={t.id} to={`/?tags=${t.id}`} className="chip chip-btn">
+          <Link key={t.id} to={`/?tags=${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
             {t.name}
           </Link>
         ))}
@@ -133,7 +133,7 @@ export function DreamDetailPage() {
                 <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                   <span className={clsx('chip', lucidityClass(r.lucidity))}>{lucidityLabel(r.lucidity)}</span>
                   {shared.slice(0, 4).map((t) => (
-                    <span key={t.id} className="chip chip-active">{t.name}</span>
+                    <span key={t.id} className="chip chip-active" style={tagChipStyle(t.color)}>{t.name}</span>
                   ))}
                   {shared.length > 4 && <span className="chip text-faint">+{shared.length - 4}</span>}
                 </div>

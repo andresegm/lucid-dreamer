@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowUpDown, Calendar, ChevronDown, Search, SlidersHorizontal, Star, X } from 'lucide-react'
 import clsx from 'clsx'
 import { INDUCTION_METHODS, LUCIDITY_OPTIONS, type DreamFilters, type Lucidity, type SortOrder, type Tag } from '@/lib/types'
+import { tagChipStyle } from '@/lib/format'
 import { Segmented, Switch } from './ui'
 
 interface Props {
@@ -144,7 +145,7 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
             <input className="input mb-2" placeholder="Find a tag…" value={tagQuery} onChange={(e) => setTagQuery(e.target.value)} />
             <div className="flex flex-wrap gap-1.5 max-h-40 overflow-auto pr-1">
               {visibleTags.map((t) => (
-                <button key={t.id} className={clsx('chip chip-btn', filters.tags.includes(t.id) && 'chip-active')} onClick={() => onChange({ tags: toggle(filters.tags, t.id) })}>
+                <button key={t.id} className={clsx('chip chip-btn', filters.tags.includes(t.id) && 'chip-active')} style={filters.tags.includes(t.id) ? undefined : tagChipStyle(t.color)} onClick={() => onChange({ tags: toggle(filters.tags, t.id) })}>
                   {t.name}
                   {t.dream_count != null && <span className="text-faint">{t.dream_count}</span>}
                 </button>
