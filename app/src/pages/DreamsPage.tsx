@@ -53,8 +53,8 @@ export function DreamsPage() {
         title="Dreams"
         subtitle={loading ? 'Loading…' : `${count.toLocaleString()} ${count === 1 ? 'entry' : 'entries'}${activeCount ? ' match your filters' : ''}`}
         actions={
-          <button className="btn btn-primary" onClick={() => navigate('/capture')}>
-            <Plus size={16} /> Write now
+          <button className="btn btn-primary" onClick={() => navigate('/new')}>
+            <Plus size={16} /> New dream
           </button>
         }
       />
@@ -80,7 +80,7 @@ export function DreamsPage() {
         <EmptyState
           title={activeCount ? 'No dreams match these filters' : 'No dreams yet'}
           hint={activeCount ? 'Try loosening a filter or clearing them all.' : 'Record your first dream to get started.'}
-          action={activeCount ? <button className="btn" onClick={clear}>Clear filters</button> : <button className="btn btn-primary" onClick={() => navigate('/capture')}><Plus size={16} /> Write now</button>}
+          action={activeCount ? <button className="btn" onClick={clear}>Clear filters</button> : <button className="btn btn-primary" onClick={() => navigate('/new')}><Plus size={16} /> New dream</button>}
         />
       ) : (
         <>
