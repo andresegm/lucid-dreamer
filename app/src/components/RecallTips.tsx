@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ChevronDown, Moon } from 'lucide-react'
 import clsx from 'clsx'
 import { pickMorningLine, RECALL_TIP_GROUPS, type RecallContext } from '@/lib/recallTips'
@@ -7,12 +7,13 @@ import { pickMorningLine, RECALL_TIP_GROUPS, type RecallContext } from '@/lib/re
 const OPEN_KEY = 'ldj.recallTips.open'
 
 export function RecallTipsCard() {
+  const location = useLocation()
   const [open, setOpen] = useState(() => {
     try {
       const v = localStorage.getItem(OPEN_KEY)
-      return v === null ? true : v === '1'
+      return v === null ? false : v === '1'
     } catch {
-      return true
+      return false
     }
   })
 
@@ -21,10 +22,10 @@ export function RecallTipsCard() {
   }, [open])
 
   useEffect(() => {
-    if (window.location.hash !== '#recall') return
+    if (location.hash !== '#recall-tips') return
     setOpen(true)
     requestAnimationFrame(() => document.getElementById('recall')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-  }, [])
+  }, [location.hash])
 
   return (
     <div id="recall" className="card scroll-mt-6">
@@ -71,7 +72,7 @@ export function MorningCue({ ctx }: { ctx: RecallContext | null }) {
           <p className="text-sm text-muted mt-0.5">{line}</p>
         </div>
       </div>
-      <Link to="/stats#recall" className="btn btn-ghost text-sm shrink-0">All recall tips</Link>
+      <Link to="/stats#recall-tips" className="btn btn-ghost text-sm shrink-0">All recall tips</Link>
     </div>
   )
 }

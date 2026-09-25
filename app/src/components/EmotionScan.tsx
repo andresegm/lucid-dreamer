@@ -109,7 +109,7 @@ export function EmotionScan() {
       {applied && (
         <div className="card text-sm mb-3" style={{ padding: '.75rem 1rem' }}>
           <div className="flex items-center gap-2 font-medium"><Check size={16} className="text-accent" /> Added {applied.tags} emotion {applied.tags === 1 ? 'tag' : 'tags'} on {applied.dreams} {applied.dreams === 1 ? 'dream' : 'dreams'}.</div>
-          <Link to="/stats" className="text-xs text-accent hover:underline mt-1 inline-block">See the feeling map on Stats</Link>
+          <Link to="/stats#patterns" className="text-xs text-accent hover:underline mt-1 inline-block">See the feeling map on Stats</Link>
         </div>
       )}
 

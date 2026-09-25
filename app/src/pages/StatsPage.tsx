@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Flame, Moon, Sparkles, Star, TrendingUp, Trophy } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite } from '@/lib/api'
@@ -12,22 +12,38 @@ import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
 import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
+type Panel = 'recall' | 'lucid' | 'patterns'
+
 const PREF_KEY = 'ldj.stats.prefs'
-interface Prefs { range: Range; includeNotes: boolean; series: Record<Lucidity, boolean>; granularity: Granularity | 'auto'; ring: 'lucidity' | 'induction' }
-const DEFAULT_PREFS: Prefs = { range: 'all', includeNotes: false, series: { lucid: true, 'semi-lucid': true, 'non-lucid': true }, granularity: 'auto', ring: 'lucidity' }
+interface Prefs { range: Range; includeNotes: boolean; series: Record<Lucidity, boolean>; granularity: Granularity | 'auto'; panel: Panel }
+const DEFAULT_PREFS: Prefs = { range: 'all', includeNotes: false, series: { lucid: true, 'semi-lucid': true, 'non-lucid': true }, granularity: 'auto', panel: 'lucid' }
 
 const COLORS = { lucid: 'var(--lucid)', semi: 'var(--semi)', non: 'var(--nonlucid)' }
 const METHOD_PALETTE = ['var(--accent)', 'var(--lucid)', 'var(--semi)', '#34d399', '#fb7185', '#e879f9', '#94a3b8', '#f97316']
 
+function panelFromHash(hash: string): Panel | null {
+  if (hash === '#recall' || hash === '#recall-tips') return 'recall'
+  if (hash === '#lucid') return 'lucid'
+  if (hash === '#patterns') return 'patterns'
+  return null
+}
+
 export function StatsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [data, setData] = useState<DreamLite[] | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [prefs, setPrefs] = useState<Prefs>(() => {
-    try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') } } catch { return DEFAULT_PREFS }
+    let base = DEFAULT_PREFS
+    try { base = { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') } } catch { /* ignore */ }
+    return panelFromHash(window.location.hash) ? { ...base, panel: panelFromHash(window.location.hash)! } : base
   })
   useEffect(() => localStorage.setItem(PREF_KEY, JSON.stringify(prefs)), [prefs])
   useEffect(() => { fetchAllLite().then(setData).catch(setError) }, [])
+  useEffect(() => {
+    const next = panelFromHash(location.hash)
+    if (next && next !== prefs.panel) setPrefs((p) => ({ ...p, panel: next }))
+  }, [location.hash]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stats = useMemo(() => (data ? computeStats({ dreams: data, range: prefs.range, includeNotes: prefs.includeNotes, series: prefs.series }) : null), [data, prefs])
   const granularity: Granularity = prefs.granularity === 'auto' ? stats?.autoGranularity ?? 'month' : prefs.granularity
@@ -71,6 +87,14 @@ export function StatsPage() {
   ].filter((s) => s.on)
 
   const toggleSeries = (k: Lucidity) => setPrefs((p) => ({ ...p, series: { ...p.series, [k]: !p.series[k] } }))
+  const setPanel = (panel: Panel) => {
+    setPrefs((p) => ({ ...p, panel }))
+    if (location.hash !== `#${panel}`) navigate({ pathname: '/stats', hash: panel }, { replace: true })
+  }
+  const openTag = (name: string) => {
+    const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === name)?.id
+    if (id) navigate(`/?tags=${id}`)
+  }
 
   return (
     <div className="fade-in">
@@ -86,7 +110,6 @@ export function StatsPage() {
         }
       />
 
-      {/* Toggles */}
       <div className="card mb-4 flex flex-wrap items-center gap-x-5 gap-y-3" style={{ padding: '.75rem 1rem' }}>
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted mr-1">Show</span>
@@ -97,16 +120,17 @@ export function StatsPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted">Trend</span>
-          <Segmented<Granularity | 'auto'> value={prefs.granularity} onChange={(granularity) => setPrefs((p) => ({ ...p, granularity }))} options={[{ value: 'auto', label: 'Auto' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]} />
-        </div>
+        {prefs.panel === 'lucid' && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted">Trend</span>
+            <Segmented<Granularity | 'auto'> value={prefs.granularity} onChange={(granularity) => setPrefs((p) => ({ ...p, granularity }))} options={[{ value: 'auto', label: 'Auto' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]} />
+          </div>
+        )}
         <div className="ml-auto">
           <Switch checked={prefs.includeNotes} onChange={(includeNotes) => setPrefs((p) => ({ ...p, includeNotes }))} label={<span className="text-muted text-xs">Count notes in streaks</span>} />
         </div>
       </div>
 
-      {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--gap)] mb-4">
         <Kpi icon={<Moon size={16} />} label="Dreams" value={total.toLocaleString()} sub={`${perWeek.toFixed(1)} / week`} />
         <Kpi icon={<Sparkles size={16} />} label="Lucid" value={lucidCount.toLocaleString()} sub={`${lucidPct}% of dreams`} accent="var(--lucid)" />
@@ -114,144 +138,147 @@ export function StatsPage() {
         <Kpi icon={<Trophy size={16} />} label="Longest streak" value={`${streaks.longest}d`} sub={bestMonth ? `best month: ${fmtDate(bestMonth[0] + '-01', 'MMM yyyy')} (${bestMonth[1]})` : '—'} accent="#34d399" />
       </div>
 
-      {/* Rings */}
-      <div className="grid lg:grid-cols-2 gap-[var(--gap)] mb-4">
-        <div className="card">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold">Lucidity</h2>
-            <span className="text-xs text-muted">{total} dreams</span>
-          </div>
-          <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-center">
-            <Ring data={lucSlices} center={`${lucidPct}%`} sub="lucid or semi" />
-            <Legend data={lucSlices} />
-          </div>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold">Induction methods</h2>
-            <span className="text-xs text-muted">{lucidCount} lucid dreams</span>
-          </div>
-          {indSlices.length ? (
-            <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-center">
-              <Ring data={indSlices} center={indSlices[0]?.name ?? '—'} sub="most common" />
-              <Legend data={indSlices} />
-            </div>
-          ) : (
-            <div className="text-sm text-faint py-10 text-center">No lucid dreams in this range yet.</div>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-4 min-w-0">
-        <RecallCalendar
-          dreams={(data ?? []).filter((d) => prefs.includeNotes || d.entry_type === 'dream')}
-          range={prefs.range}
-          onSelectDay={(iso) => navigate(`/?from=${iso}&to=${iso}`)}
+      <div className="mb-4">
+        <Segmented<Panel>
+          className="w-full max-w-md [&>button]:flex-1"
+          value={prefs.panel}
+          onChange={setPanel}
+          options={[
+            { value: 'recall', label: 'Recall' },
+            { value: 'lucid', label: 'Lucid' },
+            { value: 'patterns', label: 'Patterns' },
+          ]}
         />
       </div>
 
-      <div className="mb-4">
-        <RecallTipsCard />
-      </div>
-
-      {/* Trend */}
-      <div className="card mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold flex items-center gap-2"><TrendingUp size={16} className="text-accent" /> Dreams over time</h2>
-          <span className="text-xs text-muted">per {granularity}</span>
-        </div>
-        {seriesDefs.length ? <StackedBars data={trend} series={seriesDefs} height={240} /> : <div className="text-sm text-faint py-10 text-center">Turn on at least one series above.</div>}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-[var(--gap)]">
-        {/* Weekday recall */}
-        <div className="card">
-          <h2 className="font-semibold mb-1">Recall by weekday</h2>
-          <p className="text-xs text-muted mb-3">Which mornings you remember most — and when lucidity happens.</p>
-          <StackedBars
-            data={weekday.map((w) => ({ label: w.label, non: w.total - w.lucid, lucid: w.lucid }))}
-            series={[{ key: 'non', color: COLORS.non, name: 'Non-lucid' }, { key: 'lucid', color: COLORS.lucid, name: 'Lucid' }]}
-            height={200}
+      {prefs.panel === 'recall' && (
+        <div className="grid gap-4 fade-in">
+          <p className="text-sm text-muted -mt-1">Mornings you remembered — and how to remember more.</p>
+          <RecallCalendar
+            dreams={(data ?? []).filter((d) => prefs.includeNotes || d.entry_type === 'dream')}
+            range={prefs.range}
+            onSelectDay={(iso) => navigate(`/?from=${iso}&to=${iso}`)}
           />
-        </div>
-
-        {/* Top tags */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Top tags</h2>
-            <span className="text-xs text-muted flex items-center gap-1"><Star size={12} /> {favorites} favorites</span>
-          </div>
-          {topTags.length ? (
-            <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/?tags=${t.id}`) }))} />
-          ) : (
-            <div className="text-sm text-faint py-10 text-center">No tags yet — add some when you record a dream.</div>
-          )}
-        </div>
-      </div>
-
-      <div className="card mt-4">
-        <h2 className="font-semibold mb-1">How dreams felt</h2>
-        <p className="text-xs text-muted mb-3">
-          Each spoke is a feeling. The shape stretches toward whatever you tagged most in this range.
-          {emotionDreams ? ` ${emotionDreams} ${emotionDreams === 1 ? 'dream' : 'dreams'} tagged.` : ''}
-        </p>
-        {emotionHits.length ? (
-          <div className="grid sm:grid-cols-[1fr_auto] gap-4 items-center">
-            <EmotionRadar
-              items={emotionCounts}
-              onSelect={(name) => {
-                const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === name)?.id
-                if (id) navigate(`/?tags=${id}`)
-              }}
+          <div className="card">
+            <h2 className="font-semibold mb-1">By weekday</h2>
+            <p className="text-xs text-muted mb-3">Which mornings you remember — and when lucidity happens.</p>
+            <StackedBars
+              data={weekday.map((w) => ({ label: w.label, non: w.total - w.lucid, lucid: w.lucid }))}
+              series={[{ key: 'non', color: COLORS.non, name: 'Non-lucid' }, { key: 'lucid', color: COLORS.lucid, name: 'Lucid' }]}
+              height={200}
             />
-            <div className="flex flex-wrap sm:flex-col gap-1.5 sm:min-w-[8rem]">
-              {emotionHits.map((e) => (
-                <button
-                  key={e.name}
-                  type="button"
-                  className="chip chip-btn"
-                  onClick={() => {
-                    const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === e.name)?.id
-                    if (id) navigate(`/?tags=${id}`)
-                  }}
-                >
-                  {e.label} <span className="tabular-nums text-faint">{e.n}</span>
-                </button>
-              ))}
+          </div>
+          <RecallTipsCard />
+        </div>
+      )}
+
+      {prefs.panel === 'lucid' && (
+        <div className="grid gap-4 fade-in">
+          <p className="text-sm text-muted -mt-1">How often you notice you’re dreaming, and which methods show up.</p>
+          <div className="grid lg:grid-cols-2 gap-[var(--gap)]">
+            <div className="card">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="font-semibold">Lucidity</h2>
+                <span className="text-xs text-muted">{total} dreams</span>
+              </div>
+              <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-center">
+                <Ring data={lucSlices} center={`${lucidPct}%`} sub="lucid or semi" />
+                <Legend data={lucSlices} />
+              </div>
+            </div>
+            <div className="card">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="font-semibold">Induction methods</h2>
+                <span className="text-xs text-muted">{lucidCount} lucid dreams</span>
+              </div>
+              {indSlices.length ? (
+                <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-center">
+                  <Ring data={indSlices} center={indSlices[0]?.name ?? '—'} sub="most common" />
+                  <Legend data={indSlices} />
+                </div>
+              ) : (
+                <div className="text-sm text-faint py-10 text-center">No lucid dreams in this range yet.</div>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="text-sm text-faint py-8 text-center">
-            No feeling tags in this range yet.{' '}
-            <Link to="/settings#emotion-scan" className="text-accent hover:underline">Scan older dreams</Link>
-            {' '}or tap chips the next time you write.
-          </div>
-        )}
-      </div>
 
-      <div className="card mt-4">
-        <h2 className="font-semibold mb-1">What shows up together</h2>
-        <p className="text-xs text-muted mb-3">Tag pairs that appear more often than chance. × is lift — 2× means twice the independent rate. Click a pair to open those dreams.</p>
-        {pairs.length ? (
-          <ul className="grid sm:grid-cols-2 gap-2">
-            {pairs.map((p) => (
-              <li key={`${p.a.id}-${p.b.id}`}>
-                <button
-                  type="button"
-                  className="w-full text-left card card-hover"
-                  style={{ padding: '.65rem .8rem' }}
-                  onClick={() => navigate(`/?tags=${p.a.id},${p.b.id}&tm=all`)}
-                >
-                  <div className="font-medium truncate">{p.a.name} <span className="text-faint font-normal">·</span> {p.b.name}</div>
-                  <div className="text-xs text-muted mt-0.5 tabular-nums">{p.together} dreams · {p.lift.toFixed(1)}×</div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-sm text-faint py-8 text-center">Need more overlapping tags in this range.</div>
-        )}
-      </div>
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold flex items-center gap-2"><TrendingUp size={16} className="text-accent" /> Dreams over time</h2>
+              <span className="text-xs text-muted">per {granularity}</span>
+            </div>
+            {seriesDefs.length ? <StackedBars data={trend} series={seriesDefs} height={240} /> : <div className="text-sm text-faint py-10 text-center">Turn on at least one series above.</div>}
+          </div>
+        </div>
+      )}
+
+      {prefs.panel === 'patterns' && (
+        <div className="grid gap-4 fade-in">
+          <p className="text-sm text-muted -mt-1">Feelings, recurring tags, and pairs that show up together more than chance.</p>
+          <div className="grid lg:grid-cols-2 gap-[var(--gap)]">
+            <div className="card">
+              <h2 className="font-semibold mb-1">How dreams felt</h2>
+              <p className="text-xs text-muted mb-3">
+                The shape stretches toward whatever you tagged most.
+                {emotionDreams ? ` ${emotionDreams} ${emotionDreams === 1 ? 'dream' : 'dreams'} tagged.` : ''}
+              </p>
+              {emotionHits.length ? (
+                <div>
+                  <EmotionRadar items={emotionCounts} onSelect={openTag} />
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {emotionHits.map((e) => (
+                      <button key={e.name} type="button" className="chip chip-btn" onClick={() => openTag(e.name)}>
+                        {e.label} <span className="tabular-nums text-faint">{e.n}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-faint py-10 text-center">
+                  No feeling tags in this range yet.{' '}
+                  <Link to="/settings#emotion-scan" className="text-accent hover:underline">Scan older dreams</Link>
+                  {' '}or tap chips the next time you write.
+                </div>
+              )}
+            </div>
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Top tags</h2>
+                <span className="text-xs text-muted flex items-center gap-1"><Star size={12} /> {favorites} favorites</span>
+              </div>
+              {topTags.length ? (
+                <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/?tags=${t.id}`) }))} />
+              ) : (
+                <div className="text-sm text-faint py-10 text-center">No tags yet — add some when you record a dream.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <h2 className="font-semibold mb-1">What shows up together</h2>
+            <p className="text-xs text-muted mb-3">× is lift — 2× means twice the independent rate. Click a pair to open those dreams.</p>
+            {pairs.length ? (
+              <ul className="grid sm:grid-cols-2 gap-2">
+                {pairs.map((p) => (
+                  <li key={`${p.a.id}-${p.b.id}`}>
+                    <button
+                      type="button"
+                      className="w-full text-left card card-hover"
+                      style={{ padding: '.65rem .8rem' }}
+                      onClick={() => navigate(`/?tags=${p.a.id},${p.b.id}&tm=all`)}
+                    >
+                      <div className="font-medium truncate">{p.a.name} <span className="text-faint font-normal">·</span> {p.b.name}</div>
+                      <div className="text-xs text-muted mt-0.5 tabular-nums">{p.together} dreams · {p.lift.toFixed(1)}×</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-sm text-faint py-8 text-center">Need more overlapping tags in this range.</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
