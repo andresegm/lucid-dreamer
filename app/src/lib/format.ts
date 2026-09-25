@@ -31,6 +31,16 @@ export function wordCount(text: string): number {
   return t ? t.split(/\s+/).length : 0
 }
 
+/** First line, trimmed to a short title for morning-capture saves. */
+export function titleFromDump(text: string): string {
+  const first = text.trim().split(/\n/)[0]?.replace(/\s+/g, ' ').trim() ?? ''
+  if (!first) return 'Untitled dream'
+  if (first.length <= 56) return first
+  const words = first.split(' ')
+  const cut = words.slice(0, 8).join(' ')
+  return (cut.length < first.length ? cut : first.slice(0, 56)).replace(/[.,;:]+$/, '') + '…'
+}
+
 export function pluralize(n: number, one: string, many = one + 's'): string {
   return `${n} ${n === 1 ? one : many}`
 }

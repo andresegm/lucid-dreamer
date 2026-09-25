@@ -28,8 +28,8 @@ export function Layout() {
           </div>
         </div>
 
-        <button className="btn btn-primary mb-3" onClick={() => navigate('/new')}>
-          <Plus size={16} /> New dream
+        <button className="btn btn-primary mb-3" onClick={() => navigate('/capture')}>
+          <Plus size={16} /> Write now
         </button>
 
         {NAV.map((n) => (
@@ -55,7 +55,7 @@ export function Layout() {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 82%, transparent)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="grid grid-cols-5 items-center px-2 py-1.5">
           {NAV.slice(0, 2).map((n) => <MobileItem key={n.to} {...n} />)}
-          <button onClick={() => navigate('/new')} className="flex justify-center" aria-label="New dream">
+          <button onClick={() => navigate('/capture')} className="flex justify-center" aria-label="Write now">
             <span className="h-12 w-12 -mt-6 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'var(--accent)', boxShadow: '0 12px 30px -10px var(--accent)' }}>
               <Plus color="var(--accent-contrast)" />
             </span>

@@ -7,6 +7,7 @@ import type { DreamLite, Lucidity } from '@/lib/types'
 import { computeStats, trendSeries, type Granularity, type Range } from '@/lib/stats'
 import { fmtDate } from '@/lib/format'
 import { HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
+import { RecallCalendar } from '@/components/RecallCalendar'
 import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
 const PREF_KEY = 'ldj.stats.prefs'
@@ -131,6 +132,14 @@ export function StatsPage() {
             <div className="text-sm text-faint py-10 text-center">No lucid dreams in this range yet.</div>
           )}
         </div>
+      </div>
+
+      <div className="mb-4">
+        <RecallCalendar
+          dreams={(data ?? []).filter((d) => prefs.includeNotes || d.entry_type === 'dream')}
+          range={prefs.range}
+          onSelectDay={(iso) => navigate(`/?from=${iso}&to=${iso}`)}
+        />
       </div>
 
       {/* Trend */}

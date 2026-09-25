@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Star, StickyNote, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
-import { deleteDream, fetchDream, setFavorite } from '@/lib/api'
-import type { Dream } from '@/lib/types'
+import { deleteDream, fetchDream, fetchRelatedDreams, setFavorite } from '@/lib/api'
+import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
-import { fmtDate, lucidityClass, lucidityLabel, wordCount } from '@/lib/format'
+import { excerpt, fmtDate, lucidityClass, lucidityLabel, wordCount } from '@/lib/format'
 import { ErrorBox, Skeleton } from '@/components/ui'
 
 export function DreamDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const captured = Boolean((useLocation().state as { captured?: boolean } | null)?.captured)
   const [dream, setDream] = useState<Dream | null>(null)
+  const [related, setRelated] = useState<{ dream: Dream; shared: Tag[] }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
   const [confirm, setConfirm] = useState(false)
@@ -19,7 +21,14 @@ export function DreamDetailPage() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    fetchDream(id).then(setDream).catch(setError).finally(() => setLoading(false))
+    setRelated([])
+    fetchDream(id)
+      .then(async (d) => {
+        setDream(d)
+        if (d?.tags.length) setRelated(await fetchRelatedDreams(d.id, d.tags.map((t) => t.id)))
+      })
+      .catch(setError)
+      .finally(() => setLoading(false))
   }, [id])
 
   async function toggleFav() {
@@ -99,6 +108,41 @@ export function DreamDetailPage() {
       <article className="card mt-5 prose-dream" style={{ padding: 'calc(var(--card-pad) * 1.4)' }}>
         {paragraphs.length ? paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p className="text-faint italic">No description.</p>}
       </article>
+
+      {captured && (
+        <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 fade-in" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+          <div>
+            <div className="font-medium">Saved. Add details while it’s fresh?</div>
+            <p className="text-sm text-muted mt-0.5">Lucidity, induction method, extra tags — or leave it as-is.</p>
+          </div>
+          <Link to={`/dream/${dream.id}/edit`} className="btn btn-primary"><Pencil size={16} /> Add details</Link>
+        </div>
+      )}
+
+      {related.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-semibold mb-1">Related dreams</h2>
+          <p className="text-xs text-muted mb-3">Same people, places, or themes.</p>
+          <div className="grid gap-2">
+            {related.map(({ dream: r, shared }) => (
+              <Link key={r.id} to={`/dream/${r.id}`} className="card card-hover block">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-medium truncate">{r.title || 'Untitled'}</div>
+                  <div className="text-xs text-faint shrink-0 tabular-nums">{fmtDate(r.date, 'MMM d, yyyy')}</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className={clsx('chip', lucidityClass(r.lucidity))}>{lucidityLabel(r.lucidity)}</span>
+                  {shared.slice(0, 4).map((t) => (
+                    <span key={t.id} className="chip chip-active">{t.name}</span>
+                  ))}
+                  {shared.length > 4 && <span className="chip text-faint">+{shared.length - 4}</span>}
+                </div>
+                {r.description && <p className="text-sm text-muted mt-1.5 line-clamp-2">{excerpt(r.description, 160)}</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="text-xs text-faint mt-4 flex flex-wrap gap-x-4">
         <span>Added {fmtDate(dream.created_at.slice(0, 10), 'MMM d, yyyy')}</span>

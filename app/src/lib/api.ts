@@ -162,6 +162,48 @@ export async function deleteTag(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** Other dreams that share the most tags with this one, newest first among ties. */
+export async function fetchRelatedDreams(
+  dreamId: string,
+  tagIds: string[],
+  limit = 6,
+): Promise<{ dream: Dream; shared: Tag[] }[]> {
+  if (!tagIds.length) return []
+  const { data, error } = await supabase
+    .from('dream_tags')
+    .select('dream_id, tags(id, name, color)')
+    .in('tag_id', tagIds)
+    .neq('dream_id', dreamId)
+  if (error) throw error
+
+  const byDream = new Map<string, Tag[]>()
+  for (const r of data ?? []) {
+    const raw = r.tags as Tag | Tag[] | null
+    const tag = Array.isArray(raw) ? raw[0] : raw
+    if (!tag) continue
+    const list = byDream.get(r.dream_id) ?? []
+    if (!list.some((t) => t.id === tag.id)) list.push(tag)
+    byDream.set(r.dream_id, list)
+  }
+  const ranked = [...byDream.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, limit * 3)
+  if (!ranked.length) return []
+
+  const { data: rows, error: e2 } = await supabase
+    .from('dreams')
+    .select(DREAM_SELECT)
+    .in('id', ranked.map(([id]) => id))
+    .eq('entry_type', 'dream')
+  if (e2) throw e2
+
+  const mapped = new Map((rows ?? []).map((r) => [r.id as string, mapDream(r)]))
+  const dateOf = (id: string) => mapped.get(id)?.date ?? ''
+  return ranked
+    .filter(([id]) => mapped.has(id))
+    .sort((a, b) => b[1].length - a[1].length || dateOf(b[0]).localeCompare(dateOf(a[0])))
+    .slice(0, limit)
+    .map(([id, shared]) => ({ dream: mapped.get(id)!, shared }))
+}
+
 /** Everything, for export. */
 export async function fetchAllFull(): Promise<Dream[]> {
   const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).order('date', { ascending: true })
