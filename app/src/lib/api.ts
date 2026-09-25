@@ -1,4 +1,6 @@
 import { supabase } from './supabase'
+import { todayISO } from './format'
+import type { RecallContext } from './recallTips'
 import type { Dream, DreamFilters, DreamInput, DreamLite, Tag } from './types'
 
 const DREAM_SELECT = '*, dream_tags(tags(id, name, color))'
@@ -90,6 +92,24 @@ export async function fetchAllLite(): Promise<DreamLite[]> {
     favorite: r.favorite,
     tags: (r.dream_tags ?? []).map((dt: { tags: { id: string; name: string } | null }) => dt.tags).filter(Boolean),
   }))
+}
+
+/** Enough context to pick a morning recall cue without loading every dream. */
+export async function fetchRecallContext(): Promise<RecallContext> {
+  const today = todayISO()
+  const [{ count, error: cErr }, { data, error: dErr }] = await Promise.all([
+    supabase.from('dreams').select('id', { count: 'exact', head: true }).eq('date', today),
+    supabase.from('dreams').select('date, lucidity').eq('entry_type', 'dream').order('date', { ascending: false }).limit(30),
+  ])
+  if (cErr) throw cErr
+  if (dErr) throw dErr
+  const rows = data ?? []
+  return {
+    todayCount: count ?? 0,
+    lastDate: rows[0]?.date ?? null,
+    recentCount: rows.length,
+    recentLucid: rows.filter((r) => r.lucidity !== 'non-lucid').length,
+  }
 }
 
 export async function fetchTags(): Promise<Tag[]> {

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { fetchDreams, fetchTags, setFavorite } from '@/lib/api'
+import { fetchDreams, fetchRecallContext, fetchTags, setFavorite } from '@/lib/api'
 import type { Dream, Tag } from '@/lib/types'
+import type { RecallContext } from '@/lib/recallTips'
 import { useSettings } from '@/lib/settings'
 import { useFilters } from '@/lib/useFilters'
 import { FilterBar } from '@/components/FilterBar'
 import { DreamCard } from '@/components/DreamCard'
+import { MorningCue } from '@/components/RecallTips'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState, ErrorBox, PageHeader, Skeleton } from '@/components/ui'
 
@@ -19,6 +21,7 @@ export function DreamsPage() {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
+  const [cue, setCue] = useState<RecallContext | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -36,6 +39,7 @@ export function DreamsPage() {
 
   useEffect(() => { void load() }, [load])
   useEffect(() => { fetchTags().then(setTags).catch(() => {}) }, [])
+  useEffect(() => { fetchRecallContext().then(setCue).catch(() => {}) }, [])
   useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
 
   async function toggleFav(d: Dream) {
@@ -58,6 +62,8 @@ export function DreamsPage() {
           </button>
         }
       />
+
+      <MorningCue ctx={cue} />
 
       <FilterBar filters={filters} onChange={setFilters} onClear={clear} tags={tags} activeCount={activeCount} total={count} />
 

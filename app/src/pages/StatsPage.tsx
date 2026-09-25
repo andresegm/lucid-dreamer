@@ -8,6 +8,7 @@ import { computeStats, trendSeries, type Granularity, type Range } from '@/lib/s
 import { fmtDate } from '@/lib/format'
 import { HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
+import { RecallTipsCard } from '@/components/RecallTips'
 import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
 const PREF_KEY = 'ldj.stats.prefs'
@@ -140,6 +141,10 @@ export function StatsPage() {
           range={prefs.range}
           onSelectDay={(iso) => navigate(`/?from=${iso}&to=${iso}`)}
         />
+      </div>
+
+      <div className="mb-4">
+        <RecallTipsCard />
       </div>
 
       {/* Trend */}
