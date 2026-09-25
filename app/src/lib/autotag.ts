@@ -5,7 +5,7 @@ import type { Tag } from './types'
  *
  * Two sources are combined:
  *  1. Every existing tag name, matched as a whole word (case-insensitive). "I saw Tonka" → Tonka.
- *  2. Keyword rules (kept in sync with supabase/autotag.sql) so that variants map to one tag:
+ *  2. Keyword rules so that variants map to one tag:
  *     "flew" → flying, "my brother" → family, "RC" → reality check, …
  *
  * Acronym rules are case-sensitive so "RC"/"SP"/"FA" only match as abbreviations.
@@ -16,7 +16,7 @@ const ci = (src: string) => new RegExp(`\\b(?:${src})\\b`, 'i')
 const cs = (src: string) => new RegExp(`\\b(?:${src})\\b`)
 
 export const KEYWORD_RULES: Rule[] = [
-  // People (same list as supabase/autotag.sql — only applied if the tag already exists, or shown as a create-suggestion)
+  // People (only applied if the tag already exists, or shown as a create-suggestion)
   { tag: 'Lusho', pattern: ci('lusho') },
   { tag: 'Diego', pattern: ci('diego') },
   { tag: 'Maria', pattern: ci('maria') },

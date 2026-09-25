@@ -2,15 +2,7 @@
 
 A private, passcode-locked dream journal. React + Vite + Tailwind on the front end, Supabase (Postgres + Auth) on the back end.
 
-```
-.
-├── app/                 # the web app (Vite + React + TypeScript)
-└── supabase/
-    ├── schema.sql       # tables, indexes, RLS policies — run first
-    └── autotag.sql      # optional: tag existing dreams from their text
-```
-
-Journal exports and seed data stay on your machine (they are git-ignored) so a public clone never includes anyone's dreams.
+The repo is just `app/` (Vite + React + TypeScript). The live Supabase project already has the tables.
 
 ## 1. Which Supabase keys to use
 
@@ -23,15 +15,7 @@ Open your Supabase project → **Project Settings → API** (or **Settings → A
 
 **Do not** use the **`service_role` / secret** key anywhere in the app. It bypasses Row Level Security and anyone who opens DevTools could read it. The anon key on its own cannot read your dreams — RLS only grants access to a signed-in user.
 
-## 2. Create the database
-
-In the Supabase dashboard → **SQL Editor**:
-
-1. Paste and run `supabase/schema.sql`. This creates the `dreams`, `tags`, `dream_tags` tables, full-text search, the `tags_with_counts` view, and RLS policies that only allow **authenticated** users.
-2. Add dreams in the app, or import your own SQL. A local `supabase/seed.sql` is git-ignored on purpose so personal entries never land in a public clone.
-3. Optional: run `supabase/autotag.sql` after you have entries. It scans title + description and attaches tags for people, places, themes (flying, family, school…) and lucid techniques (false awakening, reality check, DILD…). Edit the rule list at the top of the file before running; it only ever adds links, and you can clean up afterwards in the app's Tags page. The same rules run live in the new-dream form.
-
-## 3. Create the passcode user
+## 2. Create the passcode user
 
 The app has one account. The **passcode you type on the lock screen is that account's password**.
 
@@ -43,7 +27,7 @@ The app has one account. The **passcode you type on the lock screen is that acco
 
 To change your passcode later, edit the user's password in that same screen.
 
-## 4. Run the app locally
+## 3. Run the app locally
 
 ```bash
 cd app
@@ -62,7 +46,7 @@ VITE_APP_EMAIL=me@dreams.local
 
 `app/.env` is git-ignored. If a placeholder `.env` already exists from development, overwrite it with your real values.
 
-## 5. Deploy
+## 4. Deploy
 
 Any static host works. `npm run build` outputs `app/dist`.
 

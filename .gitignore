@@ -14,10 +14,3 @@ app/dist
 .DS_Store
 *.log
 
-# Personal journal — stay on this machine only
-dreams.txt
-lucid_dream_journal_all_dreams.txt
-DJ.dj
-supabase/seed.sql
-DreamJournal 2.6.exe
-DreamJournal*.exe
