@@ -48,12 +48,11 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl fade-in">
-      <PageHeader title="Settings" subtitle="Make it yours. Preferences follow your account on any device." />
+      <PageHeader title="Settings" subtitle="Appearance, writing, and export." />
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Account</h2>
-        <p className="text-sm text-muted mb-3">{email}</p>
-        <p className="text-xs text-faint">Only this email can open these dreams. Confirm the address from the link we sent when you signed up.</p>
+        <p className="text-sm text-muted">{email}</p>
       </section>
 
       <section className="card mb-4">
@@ -107,8 +106,7 @@ export function SettingsPage() {
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Writing</h2>
         <p className="text-xs text-muted mb-4">
-          Auto-tagging reads your dream as you write and matches your existing tags (people, places…) plus common themes, techniques, and feelings (fear, awe, joy…). Optional emotion chips on Write now / New dream.
-          Record on Write now / New dream listens, turns speech into text, then discards the audio. Each account can record twice a day, 5 minutes each. Whisper is billed to your OpenAI key (~$0.006 per minute).
+          Auto-tagging can add people, places, techniques, and feelings as you write. Record on Write now or New dream if you’d rather speak — twice a day, up to five minutes each.
         </p>
         <Field label="Auto-tagging" hint={{ auto: 'Matching tags are added while you write. Remove one and it stays removed.', suggest: 'Matching tags are shown as chips under the tag field; click to add.', off: 'Tags are only added manually.' }[settings.autoTag]}>
           <Segmented<AutoTagMode> value={settings.autoTag} onChange={(autoTag) => update({ autoTag })} options={[{ value: 'auto', label: 'Automatic' }, { value: 'suggest', label: 'Suggest' }, { value: 'off', label: 'Off' }]} />
@@ -121,7 +119,7 @@ export function SettingsPage() {
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Install on your phone</h2>
-        <p className="text-xs text-muted mb-3">Add Lucid to your home screen so you can write from bed. The dump screen still saves a draft on this device if you’re offline.</p>
+        <p className="text-xs text-muted mb-3">Add Lucid to your home screen so you can write from bed. A draft still saves if you’re offline.</p>
         <InstallApp />
       </section>
 

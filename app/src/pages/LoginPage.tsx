@@ -77,12 +77,12 @@ export function LoginPage() {
   const sub = recovery
     ? 'Choose a password for this journal.'
     : mode === 'signup'
-      ? 'Your dreams stay on your account only.'
+      ? 'An email and a password is enough to start.'
       : mode === 'forgot'
         ? 'We’ll send a reset link if that email has an account.'
         : mode === 'check-email'
           ? `Open the link we sent to ${email || sessionEmail || 'your email'} to continue.`
-          : 'Sign in to your private journal.'
+          : 'Good to see you.'
 
   return (
     <div className="ambient min-h-full flex items-center justify-center p-6">
@@ -196,11 +196,8 @@ export function LoginPage() {
         {!recovery && (
           <p className="text-center text-xs text-faint mt-6">
             <Link to="/" className="hover:text-fg">← Back to Lucid</Link>
-            <span className="mx-2">·</span>
-            Private journal
           </p>
         )}
-        {recovery && <p className="text-center text-xs text-faint mt-6">Private journal · Each account sees only its own dreams</p>}
       </form>
     </div>
   )

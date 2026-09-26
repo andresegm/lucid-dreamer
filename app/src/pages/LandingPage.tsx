@@ -1,21 +1,21 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, Lock, Mic, Moon, Sparkles } from 'lucide-react'
+import { BookOpen, Mic, Moon, Sparkles, Sunrise } from 'lucide-react'
 
 const FEATURES = [
   {
     icon: BookOpen,
     title: 'Write before it fades',
-    body: 'A morning dump, a full entry, or a voice take. Fragments count. The first minute is the one that keeps the night.',
+    body: 'A morning dump, a full entry, or a few words. Fragments count. The first minute is the one that keeps the night.',
   },
   {
-    icon: Lock,
-    title: 'Only you can read it',
-    body: 'Each journal is locked to its account. Confirm your email, and nobody else can open your dreams — not even other people on this app.',
+    icon: Sunrise,
+    title: 'Notice what returns',
+    body: 'People, places, feelings. Tag them as you go and watch the same nights come back.',
   },
   {
     icon: Sparkles,
-    title: 'See the pattern',
-    body: 'Recall calendar, streaks, lucidity, tags, and how feelings show up over time. The archive becomes something you can actually use.',
+    title: 'See the stretch of mornings',
+    body: 'Streaks, lucidity, a calendar of the nights you remembered. The archive becomes something you can actually use.',
   },
 ]
 
@@ -40,12 +40,11 @@ export function LandingPage() {
 
       <main className="relative z-10 max-w-5xl mx-auto px-5 pb-20">
         <section className="pt-10 sm:pt-16 pb-14 max-w-2xl fade-in">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted mb-4">Private · Per account</p>
           <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.1]">
             Write the night down before it disappears.
           </h1>
           <p className="text-muted text-lg mt-5 leading-relaxed">
-            Lucid is a quiet journal for dreams. Capture what you remember, tag the people and places that return, and watch recall — and lucidity — come back.
+            A quiet journal for dreams. Capture what you remember, tag the people and places that return, and watch recall — and lucidity — come back.
           </p>
           <div className="flex flex-wrap gap-3 mt-8">
             <Link to="/login?mode=signup" className="btn btn-primary px-5 py-2.5">
@@ -74,17 +73,13 @@ export function LandingPage() {
             <Mic size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold">Speak it if you can’t type yet</h2>
+            <h2 className="font-semibold">Still half-asleep?</h2>
             <p className="text-sm text-muted mt-1 leading-relaxed">
-              Record from bed — two takes a day, five minutes each. Speech becomes text, the audio is discarded.
+              Record from bed, then keep writing. A few minutes is enough.
             </p>
           </div>
           <Link to="/login?mode=signup" className="btn shrink-0">Get started</Link>
         </section>
-
-        <p className="text-center text-xs text-faint mt-14">
-          Email signup with confirmation. Your dreams never appear on anyone else’s account.
-        </p>
       </main>
     </div>
   )
