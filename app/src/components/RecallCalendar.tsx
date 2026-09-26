@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, startOfYear } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
 import type { DreamLite } from '@/lib/types'
 import { rangeStart, type Range } from '@/lib/stats'
@@ -34,6 +35,33 @@ export function RecallCalendar({ dreams, range, onSelectDay }: { dreams: DreamLi
     return { byDate: map, years: ys, totalDays: map.size }
   }, [dreams, range])
 
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(0)
+  const multi = years.length > 1
+
+  useEffect(() => {
+    setPage(0)
+    const el = scrollerRef.current
+    if (el) el.scrollTo({ left: 0, behavior: 'auto' })
+  }, [years.join(',')])
+
+  function goTo(i: number) {
+    const next = Math.max(0, Math.min(years.length - 1, i))
+    setPage(next)
+    const el = scrollerRef.current
+    if (!el) return
+    const child = el.children[next] as HTMLElement | undefined
+    if (!child) return
+    el.scrollTo({ left: child.offsetLeft, behavior: 'smooth' })
+  }
+
+  function onScroll() {
+    const el = scrollerRef.current
+    if (!el || !el.clientWidth) return
+    const i = Math.round(el.scrollLeft / el.clientWidth)
+    setPage(Math.max(0, Math.min(years.length - 1, i)))
+  }
+
   if (!years.length) return null
 
   return (
@@ -43,11 +71,56 @@ export function RecallCalendar({ dreams, range, onSelectDay }: { dreams: DreamLi
         <span className="text-xs text-muted">{totalDays.toLocaleString()} days with an entry</span>
       </div>
       <p className="text-xs text-muted mb-4">Each square is a morning. Click a day to open those dreams.</p>
-      <div className="grid gap-6 min-w-0">
+
+      {multi && (
+        <div className="flex items-center gap-2 mb-3 min-w-0">
+          <button
+            type="button"
+            className="btn btn-icon shrink-0"
+            aria-label="Newer year"
+            disabled={page <= 0}
+            onClick={() => goTo(page - 1)}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="flex-1 min-w-0 overflow-x-auto flex items-center justify-center gap-1.5 py-0.5">
+            {years.map((y, i) => (
+              <button
+                key={y}
+                type="button"
+                className={clsx('chip chip-btn tabular-nums shrink-0', i === page && 'chip-active')}
+                aria-current={i === page ? 'true' : undefined}
+                onClick={() => goTo(i)}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn btn-icon shrink-0"
+            aria-label="Older year"
+            disabled={page >= years.length - 1}
+            onClick={() => goTo(page + 1)}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
+      <div
+        ref={scrollerRef}
+        className={clsx('min-w-0', multi && 'flex overflow-x-auto snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden')}
+        onScroll={multi ? onScroll : undefined}
+        style={multi ? { WebkitOverflowScrolling: 'touch' } : undefined}
+      >
         {years.map((y) => (
-          <YearRow key={y} year={y} byDate={byDate} onSelectDay={onSelectDay} />
+          <div key={y} className={clsx('min-w-0', multi && 'w-full shrink-0 snap-start snap-always')}>
+            <YearRow year={y} byDate={byDate} onSelectDay={onSelectDay} showYearLabel={!multi} />
+          </div>
         ))}
       </div>
+
       <div className="flex flex-wrap items-center gap-2 mt-4 text-[11px] text-faint">
         <span>Less</span>
         <span className="cal-cell" data-level="0" />
@@ -61,12 +134,22 @@ export function RecallCalendar({ dreams, range, onSelectDay }: { dreams: DreamLi
   )
 }
 
-function YearRow({ year, byDate, onSelectDay }: { year: number; byDate: Map<string, DayInfo>; onSelectDay: (iso: string) => void }) {
+function YearRow({
+  year,
+  byDate,
+  onSelectDay,
+  showYearLabel = true,
+}: {
+  year: number
+  byDate: Map<string, DayInfo>
+  onSelectDay: (iso: string) => void
+  showYearLabel?: boolean
+}) {
   const [tip, setTip] = useState<{ iso: string; x: number; y: number } | null>(null)
   const { weeks, monthMarks } = useMemo(() => buildYear(year), [year])
   return (
     <div className="cal-year min-w-0">
-      <div className="text-xs font-semibold text-muted mb-1.5 tabular-nums">{year}</div>
+      {showYearLabel && <div className="text-xs font-semibold text-muted mb-1.5 tabular-nums">{year}</div>}
       <div className="grid min-w-0 gap-x-1" style={{ gridTemplateColumns: '12px minmax(0, 1fr)' }}>
         <div />
         <div className="relative h-3 min-w-0 mb-0.5">
