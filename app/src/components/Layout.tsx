@@ -41,7 +41,7 @@ export function Layout() {
 
         <div className="mt-auto">
           <button className="nav-item w-full" onClick={() => void signOut()}>
-            <LogOut size={18} /> Lock
+            <LogOut size={18} /> Sign out
           </button>
         </div>
       </aside>

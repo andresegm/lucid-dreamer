@@ -14,14 +14,14 @@ import { CapturePage } from '@/pages/CapturePage'
 import { Spinner } from '@/components/ui'
 
 function Gate() {
-  const { session, loading } = useAuth()
+  const { session, loading, recovery } = useAuth()
   if (loading)
     return (
       <div className="min-h-full flex items-center justify-center text-muted">
         <Spinner />
       </div>
     )
-  if (!session) return <LoginPage />
+  if (!session || recovery) return <LoginPage />
   return (
     <Routes>
       <Route element={<Layout />}>

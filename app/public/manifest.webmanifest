@@ -1,7 +1,7 @@
 {
   "name": "Lucid — Dream Journal",
   "short_name": "Lucid",
-  "description": "A private, passcode-locked dream journal.",
+  "description": "A private dream journal. Your account, your dreams.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

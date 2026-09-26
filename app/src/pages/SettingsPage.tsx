@@ -11,7 +11,7 @@ import { fmtDate } from '@/lib/format'
 
 export function SettingsPage() {
   const { settings, update, reset } = useSettings()
-  const { signOut } = useAuth()
+  const { signOut, email } = useAuth()
   const [exporting, setExporting] = useState<null | 'json' | 'txt' | 'csv'>(null)
 
   useEffect(() => {
@@ -48,7 +48,13 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl fade-in">
-      <PageHeader title="Settings" subtitle="Make it yours. Everything here is saved on this device." />
+      <PageHeader title="Settings" subtitle="Make it yours. Appearance stays on this device; dreams stay on your account." />
+
+      <section className="card mb-4">
+        <h2 className="font-semibold mb-1">Account</h2>
+        <p className="text-sm text-muted mb-3">{email}</p>
+        <p className="text-xs text-faint">Only this email can open these dreams. Confirm the address from the link we sent when you signed up.</p>
+      </section>
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-4">Appearance</h2>
@@ -141,7 +147,7 @@ export function SettingsPage() {
 
       <div className="flex flex-wrap justify-between gap-2">
         <button className="btn btn-ghost" onClick={reset}><RotateCcw size={16} /> Reset appearance</button>
-        <button className="btn" onClick={() => void signOut()}><LogOut size={16} /> Lock journal</button>
+        <button className="btn" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
       </div>
     </div>
   )

@@ -8,6 +8,8 @@ import { todayISO, wordCount } from '@/lib/format'
 import { appendTranscript } from '@/lib/voice'
 import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
+import { useAuth } from '@/lib/auth'
+import { draftKey } from '@/lib/drafts'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
@@ -26,11 +28,11 @@ interface FormState {
   tags: string[] // names
 }
 
-const DRAFT_KEY = 'ldj.draft.new'
-
 export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { session } = useAuth()
+  const newDraft = draftKey(session!.user.id, 'new')
   const { settings } = useSettings()
   // When editing an existing dream, never add tags silently — only suggest.
   const autoTagMode = settings.autoTag === 'auto' && mode === 'edit' ? 'suggest' : settings.autoTag
@@ -46,7 +48,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
       try {
-        const d = localStorage.getItem(DRAFT_KEY)
+        const d = localStorage.getItem(newDraft) ?? localStorage.getItem('ldj.draft.new')
         if (d) return { ...JSON.parse(d), date: todayISO() } as FormState
       } catch { /* ignore */ }
     }
@@ -78,9 +80,9 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   useEffect(() => {
     if (mode !== 'new') return
     const hasContent = f.title || f.description || f.tags.length
-    if (hasContent) localStorage.setItem(DRAFT_KEY, JSON.stringify(f))
-    else localStorage.removeItem(DRAFT_KEY)
-  }, [f, mode])
+    if (hasContent) localStorage.setItem(newDraft, JSON.stringify(f))
+    else localStorage.removeItem(newDraft)
+  }, [f, mode, newDraft])
 
   useEffect(() => { if (!loading) titleRef.current?.focus() }, [loading])
 
@@ -145,7 +147,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         tagIds: tags.map((t) => t.id),
       }
       const saved = mode === 'new' ? await createDream(input) : await updateDream(id!, input)
-      if (mode === 'new') localStorage.removeItem(DRAFT_KEY)
+      if (mode === 'new') localStorage.removeItem(newDraft)
       navigate(`/dream/${saved.id}`, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

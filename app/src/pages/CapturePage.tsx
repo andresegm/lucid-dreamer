@@ -10,14 +10,17 @@ import type { Tag } from '@/lib/types'
 import { EmotionChips } from '@/components/EmotionChips'
 import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
-
-const DRAFT_KEY = 'ldj.draft.capture'
+import { useAuth } from '@/lib/auth'
+import { draftKey } from '@/lib/drafts'
 
 export function CapturePage() {
   const navigate = useNavigate()
+  const { session } = useAuth()
+  const uid = session!.user.id
+  const captureDraft = draftKey(uid, 'capture')
   const [date, setDate] = useState(todayISO)
   const [text, setText] = useState(() => {
-    try { return localStorage.getItem(DRAFT_KEY) ?? '' } catch { return '' }
+    try { return localStorage.getItem(draftKey(uid, 'capture')) ?? localStorage.getItem('ldj.draft.capture') ?? '' } catch { return '' }
   })
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [saving, setSaving] = useState(false)
@@ -28,9 +31,9 @@ export function CapturePage() {
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
   useEffect(() => { ta.current?.focus() }, [])
   useEffect(() => {
-    if (text.trim()) localStorage.setItem(DRAFT_KEY, text)
-    else localStorage.removeItem(DRAFT_KEY)
-  }, [text])
+    if (text.trim()) localStorage.setItem(captureDraft, text)
+    else localStorage.removeItem(captureDraft)
+  }, [text, captureDraft])
 
   const words = useMemo(() => wordCount(text), [text])
   const matches = useMemo(
@@ -77,7 +80,7 @@ export function CapturePage() {
         favorite: false,
         tagIds: tags.map((t) => t.id),
       })
-      localStorage.removeItem(DRAFT_KEY)
+      localStorage.removeItem(captureDraft)
       navigate(`/dream/${saved.id}`, { replace: true, state: { captured: true } })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -99,8 +102,8 @@ export function CapturePage() {
       favorite: false,
       tags: saveNames,
     }
-    localStorage.setItem('ldj.draft.new', JSON.stringify(draft))
-    localStorage.removeItem(DRAFT_KEY)
+    localStorage.setItem(draftKey(uid, 'new'), JSON.stringify(draft))
+    localStorage.removeItem(captureDraft)
     navigate('/new')
   }
 

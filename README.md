@@ -1,6 +1,6 @@
 # Lucid — Dream Journal
 
-A private, passcode-locked dream journal. React + Vite + Tailwind on the front end, Supabase (Postgres + Auth) on the back end.
+A private dream journal. Each person signs up with email, confirms the address, and only sees their own dreams. React + Vite + Tailwind on the front end, Supabase (Postgres + Auth) on the back end.
 
 The repo is `app/` (Vite + React + TypeScript) plus `supabase/functions/transcribe` for optional voice notes. The live Supabase project already has the tables.
 
@@ -15,23 +15,26 @@ Open your Supabase project → **Project Settings → API** (or **Settings → A
 
 **Do not** use the **`service_role` / secret** key anywhere in the app. It bypasses Row Level Security and anyone who opens DevTools could read it. The anon key on its own cannot read your dreams — RLS only grants access to a signed-in user.
 
-## 2. Create the passcode user
+## 2. Per-user accounts (required before signup)
 
-The app has one account. The **passcode you type on the lock screen is that account's password**.
+Journals must be scoped to `auth.uid()`. Run these in **Supabase → SQL Editor** before anyone else can sign up, or every signed-in user could see the existing journal:
 
-1. **Authentication → Users → Add user → Create new user**
-2. Email: anything you like (e.g. `me@dreams.local`) — you never see it in the app
-3. Password: your passcode (min 6 characters; digits only is fine, the lock screen has a keypad)
-4. Tick **Auto Confirm User**
-5. Recommended: **Authentication → Providers → Email → disable "Allow new users to sign up"**, so nobody else can create an account.
+1. `supabase/per-user.sql` — add owners and per-user RLS
+2. `supabase/lockdown.sql` — revoke leftover public/anon privileges and force RLS
 
-To change your passcode later, edit the user's password in that same screen.
+Then:
+
+1. **Authentication → Providers → Email** — enable Email, enable **Confirm email**, enable **Allow new users to sign up**.
+2. **Authentication → URL Configuration** — Site URL = your app origin. Redirect URLs must include `http://localhost:5173/**` and the production origin.
+3. Your existing account still works: sign in with that email and the old passcode (now just the password).
+
+Confirm emails and password-reset emails come from Supabase (default templates). Custom SMTP is optional under **Project Settings → Auth**.
 
 ## 3. Run the app locally
 
 ```bash
 cd app
-cp .env.example .env        # then fill in the three values
+cp .env.example .env        # then fill in the two values
 npm install
 npm run dev                 # http://localhost:5173
 ```
@@ -41,7 +44,6 @@ npm run dev                 # http://localhost:5173
 ```
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
-VITE_APP_EMAIL=me@dreams.local
 ```
 
 `app/.env` is git-ignored. If a placeholder `.env` already exists from development, overwrite it with your real values.
@@ -50,7 +52,7 @@ VITE_APP_EMAIL=me@dreams.local
 
 Any static host works. `npm run build` outputs `app/dist`.
 
-- **Vercel / Netlify**: import the repo, set root directory to `app`, build command `npm run build`, output `dist`, and add the three `VITE_*` variables in the project's environment settings. Both hosts need an SPA fallback so `/stats`, `/dream/…` etc. load on refresh:
+- **Vercel / Netlify**: import the repo, set root directory to `app`, build command `npm run build`, output `dist`, and add the two `VITE_*` variables in the project's environment settings. Both hosts need an SPA fallback so `/stats`, `/dream/…` etc. load on refresh:
   - Netlify: create `app/public/_redirects` containing `/* /index.html 200`
   - Vercel: create `app/vercel.json` with `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`
 - Then in Supabase → **Authentication → URL Configuration**, add your deployed URL to **Site URL / Redirect URLs**.
@@ -59,7 +61,7 @@ Any static host works. `npm run build` outputs `app/dist`.
 
 Write now and New dream have a **Record** button: tap, talk, tap stop. Recording stops on its own after **5 minutes** so a forgotten tap cannot run all day. The clip is sent once to Whisper and then discarded — it is never stored.
 
-This is **not free**. OpenAI Whisper is about **$0.006 per minute** of audio (a typical morning dump is well under a cent). You need an OpenAI API key with billing enabled.
+This is **not free**. OpenAI Whisper is about **$0.006 per minute** of audio (a typical morning dump is well under a cent). You need an OpenAI API key with billing enabled. Anyone who can sign in can use Record against that key — keep an eye on usage if the app is public.
 
 One-time setup (from the repo root, after `npx supabase login` and linking this project):
 
@@ -72,7 +74,7 @@ Until that function is deployed, Record will show an error instead of text.
 
 ## Features
 
-- **Passcode lock** — Supabase email/password under the hood; optional auto-lock after inactivity.
+- **Accounts** — email + password, confirm-email signup, password reset; optional auto-lock after inactivity. Each account only sees its own dreams and tags.
 - **Dreams list** — pagination, full-text search, filters for date range, lucidity, induction method, tags (any/all), favorites, notes; sort newest/oldest/title. Filters live in the URL so they survive refresh and can be bookmarked.
 - **Dream detail** — favorite, edit, delete (with confirmation). Tags link to a filtered list.
 - **New / edit dream** — date defaults to today (change freely), entry type (dream/note), lucidity, induction method (DILD, MILD, WBTB, WILD, DEILD, EILD, SSILD, FILD or custom) with notes, tag picker that creates tags inline, auto-saving draft. Write now and New dream can **Record** a voice dump (transcribed, audio discarded).
@@ -86,4 +88,4 @@ Until that function is deployed, Record will show an error instead of text.
 - `tags` — `name` (unique, case-insensitive), optional `color`.
 - `dream_tags` — many-to-many.
 
-All tables have RLS enabled with policies for the `authenticated` role only.
+All tables have RLS enabled. After `per-user.sql`, policies restrict each row to `auth.uid()`.
