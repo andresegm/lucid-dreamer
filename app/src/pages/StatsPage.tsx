@@ -83,7 +83,7 @@ export function StatsPage() {
   }
   const openTag = (name: string) => {
     const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === name)?.id
-    if (id) navigate(`/?tags=${id}`)
+    if (id) navigate(`/dreams?tags=${id}`)
   }
 
   return (
@@ -147,7 +147,7 @@ export function StatsPage() {
           <RecallCalendar
             dreams={(data ?? []).filter((d) => prefs.includeNotes || d.entry_type === 'dream')}
             range={prefs.range}
-            onSelectDay={(iso) => navigate(`/?from=${iso}&to=${iso}`)}
+            onSelectDay={(iso) => navigate(`/dreams?from=${iso}&to=${iso}`)}
           />
           <div className="card">
             <h2 className="font-semibold mb-1">By weekday</h2>
@@ -237,7 +237,7 @@ export function StatsPage() {
                 <span className="text-xs text-muted flex items-center gap-1"><Star size={12} /> {favorites} favorites</span>
               </div>
               {topTags.length ? (
-                <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/?tags=${t.id}`) }))} />
+                <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/dreams?tags=${t.id}`) }))} />
               ) : (
                 <div className="text-sm text-faint py-10 text-center">No tags yet — add some when you record a dream.</div>
               )}
@@ -255,7 +255,7 @@ export function StatsPage() {
                       type="button"
                       className="w-full text-left card card-hover"
                       style={{ padding: '.65rem .8rem' }}
-                      onClick={() => navigate(`/?tags=${p.a.id},${p.b.id}&tm=all`)}
+                      onClick={() => navigate(`/dreams?tags=${p.a.id},${p.b.id}&tm=all`)}
                     >
                       <div className="font-medium truncate">{p.a.name} <span className="text-faint font-normal">·</span> {p.b.name}</div>
                       <div className="text-xs text-muted mt-0.5 tabular-nums">{p.together} dreams · {p.lift.toFixed(1)}×</div>

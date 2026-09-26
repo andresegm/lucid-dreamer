@@ -3,7 +3,9 @@ import { SettingsProvider } from '@/lib/settings'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { configError } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
+import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { DreamsPage } from '@/pages/DreamsPage'
 import { DreamDetailPage } from '@/pages/DreamDetailPage'
 import { DreamFormPage } from '@/pages/DreamFormPage'
@@ -21,11 +23,21 @@ function Gate() {
         <Spinner />
       </div>
     )
-  if (!session || recovery) return <LoginPage />
+  if (recovery) return <LoginPage />
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
+  }
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<DreamsPage />} />
+        <Route index element={<DashboardPage />} />
+        <Route path="dreams" element={<DreamsPage />} />
         <Route path="dream/:id" element={<DreamDetailPage />} />
         <Route path="dream/:id/edit" element={<DreamFormPage mode="edit" />} />
         <Route path="new" element={<DreamFormPage mode="new" />} />
@@ -35,6 +47,7 @@ function Gate() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      <Route path="/login" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

@@ -62,7 +62,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     if (mode !== 'edit' || !id) return
     fetchDream(id)
       .then((d) => {
-        if (!d) return navigate('/', { replace: true })
+        if (!d) return navigate('/dreams', { replace: true })
         const std = INDUCTION_METHODS.includes(d.induction_method as never)
         setF({
           date: d.date, title: d.title, description: d.description, lucidity: d.lucidity,

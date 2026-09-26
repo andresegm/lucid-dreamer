@@ -40,7 +40,7 @@ export function DreamDetailPage() {
   async function remove() {
     if (!dream) return
     await deleteDream(dream.id)
-    navigate('/', { replace: true })
+    navigate('/dreams', { replace: true })
   }
 
   if (error) return <ErrorBox error={error} />
@@ -91,7 +91,7 @@ export function DreamDetailPage() {
           </span>
         )}
         {dream.tags.map((t) => (
-          <Link key={t.id} to={`/?tags=${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
+          <Link key={t.id} to={`/dreams?tags=${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
             {t.name}
           </Link>
         ))}

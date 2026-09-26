@@ -94,7 +94,7 @@ export function TagsPage() {
                     onClick={() => setColorFor((id) => (id === t.id ? null : t.id))}
                     aria-label={`Color ${t.name}`}
                   />
-                  <Link to={`/?tags=${t.id}`} className="flex-1 min-w-0 flex items-center gap-2">
+                  <Link to={`/dreams?tags=${t.id}`} className="flex-1 min-w-0 flex items-center gap-2">
                     <span className="truncate font-medium" style={t.color ? { color: t.color } : undefined}>{t.name}</span>
                     <span className="chip tabular-nums shrink-0" style={tagChipStyle(t.color)}>{t.dream_count ?? 0}</span>
                   </Link>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Lock, Mail, Moon } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { Segmented, Spinner } from '@/components/ui'
@@ -7,7 +8,8 @@ type Mode = 'signin' | 'signup' | 'forgot' | 'check-email'
 
 export function LoginPage() {
   const { signIn, signUp, requestReset, updatePassword, resendSignup, recovery, email: sessionEmail } = useAuth()
-  const [mode, setMode] = useState<Mode>('signin')
+  const [params] = useSearchParams()
+  const [mode, setMode] = useState<Mode>(() => (params.get('mode') === 'signup' ? 'signup' : 'signin'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -191,7 +193,14 @@ export function LoginPage() {
             </div>
           )}
         </div>
-        <p className="text-center text-xs text-faint mt-6">Private journal · Each account sees only its own dreams</p>
+        {!recovery && (
+          <p className="text-center text-xs text-faint mt-6">
+            <Link to="/" className="hover:text-fg">← Back to Lucid</Link>
+            <span className="mx-2">·</span>
+            Private journal
+          </p>
+        )}
+        {recovery && <p className="text-center text-xs text-faint mt-6">Private journal · Each account sees only its own dreams</p>}
       </form>
     </div>
   )

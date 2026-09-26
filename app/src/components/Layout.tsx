@@ -1,12 +1,20 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BookOpen, ChartPie, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
+import { BookOpen, ChartPie, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth'
 
-const NAV = [
-  { to: '/', label: 'Dreams', icon: BookOpen, end: true },
+const SIDEBAR = [
+  { to: '/', label: 'Home', icon: Home, end: true },
+  { to: '/dreams', label: 'Dreams', icon: BookOpen },
   { to: '/stats', label: 'Stats', icon: ChartPie },
   { to: '/tags', label: 'Tags', icon: Tags },
+  { to: '/settings', label: 'Settings', icon: Settings },
+]
+
+const MOBILE = [
+  { to: '/', label: 'Home', icon: Home, end: true },
+  { to: '/dreams', label: 'Dreams', icon: BookOpen },
+  { to: '/stats', label: 'Stats', icon: ChartPie },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -32,7 +40,7 @@ export function Layout() {
           <Plus size={16} /> Write now
         </button>
 
-        {NAV.map((n) => (
+        {SIDEBAR.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => clsx('nav-item', isActive && 'nav-item-active')}>
             <n.icon size={18} />
             {n.label}
@@ -54,13 +62,13 @@ export function Layout() {
       {/* Bottom nav (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 82%, transparent)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="grid grid-cols-5 items-center px-2 py-1.5">
-          {NAV.slice(0, 2).map((n) => <MobileItem key={n.to} {...n} />)}
+          {MOBILE.slice(0, 2).map((n) => <MobileItem key={n.to} {...n} />)}
           <button onClick={() => navigate('/capture')} className="flex justify-center" aria-label="Write now">
             <span className="h-12 w-12 -mt-6 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'var(--accent)', boxShadow: '0 12px 30px -10px var(--accent)' }}>
               <Plus color="var(--accent-contrast)" />
             </span>
           </button>
-          {NAV.slice(2).map((n) => <MobileItem key={n.to} {...n} />)}
+          {MOBILE.slice(2).map((n) => <MobileItem key={n.to} {...n} />)}
         </div>
       </nav>
     </div>
