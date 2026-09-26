@@ -83,7 +83,7 @@ export function StatsPage() {
   }
   const openTag = (name: string) => {
     const id = shown.flatMap((d) => d.tags).find((t) => t.name.toLowerCase() === name)?.id
-    if (id) navigate(`/dreams?tags=${id}`)
+    if (id) navigate(`/tag/${id}`)
   }
 
   return (
@@ -237,7 +237,7 @@ export function StatsPage() {
                 <span className="text-xs text-muted flex items-center gap-1"><Star size={12} /> {favorites} favorites</span>
               </div>
               {topTags.length ? (
-                <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/dreams?tags=${t.id}`) }))} />
+                <HBarList items={topTags.map((t) => ({ label: t.name, value: t.n, onClick: () => navigate(`/tag/${t.id}`) }))} />
               ) : (
                 <div className="text-sm text-faint py-10 text-center">No tags yet — add some when you record a dream.</div>
               )}

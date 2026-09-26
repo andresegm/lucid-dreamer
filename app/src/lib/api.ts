@@ -118,6 +118,12 @@ export async function fetchTags(): Promise<Tag[]> {
   return (data ?? []) as Tag[]
 }
 
+export async function fetchTag(id: string): Promise<Tag | null> {
+  const { data, error } = await supabase.from('tags_with_counts').select('*').eq('id', id).maybeSingle()
+  if (error) throw error
+  return (data as Tag | null) ?? null
+}
+
 /** Create any tags that don't yet exist (case-insensitive) and return ids for all names. */
 export async function ensureTags(names: string[]): Promise<Tag[]> {
   const clean = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)))
@@ -146,12 +152,44 @@ async function setDreamTags(dreamId: string, tagIds: string[]) {
   }
 }
 
-export async function createDream(input: DreamInput): Promise<Dream> {
+export async function createDream(input: DreamInput, source = 'app'): Promise<Dream> {
   const { tagIds, ...fields } = input
-  const { data, error } = await supabase.from('dreams').insert({ ...fields, source: 'app' }).select('id').single()
+  const { data, error } = await supabase.from('dreams').insert({ ...fields, source }).select('id').single()
   if (error) throw error
   await setDreamTags(data.id, tagIds)
   return (await fetchDream(data.id))!
+}
+
+export type ImportDraft = Omit<DreamInput, 'tagIds'> & { tagNames: string[] }
+
+export async function importEntries(rows: ImportDraft[]): Promise<{ created: number; skipped: number }> {
+  if (!rows.length) return { created: 0, skipped: 0 }
+  const existing = await fetchAllFull()
+  const seen = new Set(existing.map((d) => `${d.date}\n${d.title}\n${d.description}`))
+  let created = 0
+  let skipped = 0
+  for (const row of rows) {
+    const key = `${row.date}\n${row.title}\n${row.description}`
+    if (seen.has(key)) {
+      skipped++
+      continue
+    }
+    const tags = await ensureTags(row.tagNames)
+    await createDream({
+      date: row.date,
+      title: row.title,
+      description: row.description,
+      lucidity: row.lucidity,
+      induction_method: row.induction_method,
+      induction_notes: row.induction_notes,
+      entry_type: row.entry_type,
+      favorite: row.favorite,
+      tagIds: tags.map((t) => t.id),
+    }, 'import')
+    seen.add(key)
+    created++
+  }
+  return { created, skipped }
 }
 
 export async function updateDream(id: string, input: DreamInput): Promise<Dream> {

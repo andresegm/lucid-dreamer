@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Check, Download, LogOut, RotateCcw, Smartphone } from 'lucide-react'
+import { Check, Download, LogOut, RotateCcw, Smartphone, Upload } from 'lucide-react'
 import clsx from 'clsx'
 import { ACCENT_PRESETS, useSettings, type AutoTagMode, type Density, type Theme } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
-import { fetchAllFull } from '@/lib/api'
+import { fetchAllFull, importEntries } from '@/lib/api'
+import { parseImport } from '@/lib/impex'
 import type { SortOrder } from '@/lib/types'
 import { Field, PageHeader, Segmented, Spinner, Switch } from '@/components/ui'
 import { EmotionScan } from '@/components/EmotionScan'
@@ -13,6 +14,8 @@ export function SettingsPage() {
   const { settings, update, reset } = useSettings()
   const { signOut, email } = useAuth()
   const [exporting, setExporting] = useState<null | 'json' | 'txt' | 'csv'>(null)
+  const [importing, setImporting] = useState(false)
+  const [importNote, setImportNote] = useState<string | null>(null)
 
   useEffect(() => {
     if (window.location.hash === '#emotion-scan') {
@@ -46,9 +49,28 @@ export function SettingsPage() {
     }
   }
 
+  async function onImport(file: File) {
+    setImporting(true)
+    setImportNote(null)
+    try {
+      const text = await file.text()
+      const rows = parseImport(file.name, text)
+      if (!rows.length) {
+        setImportNote('Nothing we could read in that file.')
+        return
+      }
+      const { created, skipped } = await importEntries(rows)
+      setImportNote(skipped ? `Added ${created}. Skipped ${skipped} already in the journal.` : `Added ${created}.`)
+    } catch (e) {
+      setImportNote(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl fade-in">
-      <PageHeader title="Settings" subtitle="Appearance, writing, and export." />
+      <PageHeader title="Settings" subtitle="Appearance, writing, export, and import." />
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Account</h2>
@@ -141,6 +163,27 @@ export function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="card mb-4">
+        <h2 className="font-semibold mb-1">Import</h2>
+        <p className="text-xs text-muted mb-4">Bring back a Lucid export (.json, .csv, or .txt). Entries already in the journal are skipped.</p>
+        <label className="btn inline-flex cursor-pointer">
+          {importing ? <Spinner /> : <Upload size={16} />}
+          Choose file
+          <input
+            type="file"
+            accept=".json,.csv,.txt,text/plain,text/csv,application/json"
+            className="sr-only"
+            disabled={importing}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void onImport(file)
+            }}
+          />
+        </label>
+        {importNote && <p className="text-sm text-muted mt-3">{importNote}</p>}
       </section>
 
       <div className="flex flex-wrap justify-between gap-2">

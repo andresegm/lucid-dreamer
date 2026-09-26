@@ -91,7 +91,7 @@ export function DreamDetailPage() {
           </span>
         )}
         {dream.tags.map((t) => (
-          <Link key={t.id} to={`/dreams?tags=${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
+          <Link key={t.id} to={`/tag/${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
             {t.name}
           </Link>
         ))}

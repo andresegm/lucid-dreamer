@@ -10,6 +10,7 @@ import { computeStreaks } from '@/lib/stats'
 import { useSettings } from '@/lib/settings'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
 import { fmtDate, todayISO } from '@/lib/format'
+import { groupNights } from '@/lib/nights'
 import { DreamCard } from '@/components/DreamCard'
 import { ErrorBox, Skeleton } from '@/components/ui'
 
@@ -57,7 +58,7 @@ export function DashboardPage() {
     if (!lite) return null
     const dreams = lite.filter((d) => d.entry_type === 'dream')
     const weekStart = subDays(new Date(), 6)
-    const thisWeek = dreams.filter((d) => parseISO(d.date) >= weekStart).length
+    const thisWeek = new Set(dreams.filter((d) => parseISO(d.date) >= weekStart).map((d) => d.date)).size
     const lucid = dreams.filter((d) => d.lucidity !== 'non-lucid').length
     const lucidPct = dreams.length ? Math.round((lucid / dreams.length) * 100) : 0
     const streaks = computeStreaks(lite.filter((d) => settings.showNotesInList || d.entry_type === 'dream').map((d) => d.date))
@@ -100,6 +101,8 @@ export function DashboardPage() {
         </button>
       </div>
 
+      <TonightCard />
+
       {morning && (
         <div className="card mb-4 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
           <div className="flex items-start gap-2.5 min-w-0">
@@ -117,7 +120,7 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--gap)] mb-5">
         <Kpi icon={<Flame size={16} />} label="Streak" value={`${kpis.streak}d`} sub={kpis.streak ? 'keep the mornings going' : 'write tonight to start'} accent="#fb7185" />
-        <Kpi icon={<BookOpen size={16} />} label="This week" value={String(kpis.thisWeek)} sub={`${kpis.total.toLocaleString()} dreams in all`} />
+        <Kpi icon={<BookOpen size={16} />} label="Nights this week" value={String(kpis.thisWeek)} sub={`${kpis.total.toLocaleString()} dreams in all`} />
         <Kpi icon={<Sparkles size={16} />} label="Lucid" value={`${kpis.lucidPct}%`} sub="of every dream" accent="var(--lucid)" />
         <Kpi icon={<Mic size={16} />} label="Voice today" value={voiceLeft == null ? '—' : `${voiceLeft}`} sub={`${VOICE_DAILY_LIMIT} recordings / day`} />
       </div>
@@ -135,9 +138,26 @@ export function DashboardPage() {
               <button className="btn btn-primary" onClick={() => navigate('/capture')}><Plus size={16} /> Write now</button>
             </div>
           ) : (
-            <div className="grid gap-[var(--gap)]">
-              {recent.map((d) => (
-                <DreamCard key={d.id} dream={d} showPreview={settings.showPreview} onToggleFavorite={toggleFav} />
+            <div className="grid gap-5">
+              {groupNights(recent).map((night) => (
+                <section key={night.date}>
+                  {night.items.length > 1 && (
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+                      {fmtDate(night.date, 'EEE, MMM d')} · {night.items.length} entries
+                    </h3>
+                  )}
+                  <div className="grid gap-[var(--gap)]">
+                    {night.items.map((d, i) => (
+                      <DreamCard
+                        key={d.id}
+                        dream={d}
+                        showPreview={settings.showPreview}
+                        onToggleFavorite={toggleFav}
+                        hideDate={night.items.length > 1 && i > 0}
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}
@@ -163,6 +183,34 @@ export function DashboardPage() {
           </section>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TonightCard() {
+  const { settings, update } = useSettings()
+  const today = todayISO()
+  const written = settings.tonightWrittenOn === today
+
+  return (
+    <div className="card mb-4">
+      <h2 className="font-semibold mb-1">Tonight</h2>
+      <p className="text-xs text-muted mb-3">One line before you sleep. Check it when you’ve written it down.</p>
+      <input
+        className="input"
+        placeholder="When I see a clock, I’ll ask if I’m dreaming"
+        value={settings.tonightText}
+        onChange={(e) => update({ tonightText: e.target.value })}
+      />
+      <label className="flex items-center gap-2 mt-3 text-sm cursor-pointer select-none">
+        <input
+          type="checkbox"
+          className="accent-[var(--accent)]"
+          checked={written}
+          onChange={(e) => update({ tonightWrittenOn: e.target.checked ? today : null })}
+        />
+        I wrote it
+      </label>
     </div>
   )
 }

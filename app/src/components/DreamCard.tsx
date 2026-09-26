@@ -4,12 +4,12 @@ import clsx from 'clsx'
 import type { Dream } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/lib/format'
 
-export function DreamCard({ dream, showPreview, onToggleFavorite }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void }) {
+export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void; hideDate?: boolean }) {
   const isNote = dream.entry_type === 'note'
   return (
     <Link to={`/dream/${dream.id}`} className="card card-hover block fade-in group min-w-0 max-w-full overflow-hidden">
       <div className="flex items-start gap-3 min-w-0">
-        <DateBadge iso={dream.date} />
+        {!hideDate && <DateBadge iso={dream.date} />}
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex items-start gap-2 min-w-0">
             <h3 className="font-semibold leading-snug flex-1 min-w-0 truncate">{dream.title || 'Untitled'}</h3>

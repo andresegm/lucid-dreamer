@@ -20,6 +20,8 @@ export interface Settings {
   showNotesInList: boolean
   showPreview: boolean
   lockTimeoutMin: number // 0 = never auto-lock
+  tonightText: string
+  tonightWrittenOn: string | null
 }
 
 export interface StatsPrefs {
@@ -51,6 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
   showNotesInList: true,
   showPreview: true,
   lockTimeoutMin: 0,
+  tonightText: '',
+  tonightWrittenOn: null,
 }
 
 export const DEFAULT_STATS_PREFS: StatsPrefs = {

@@ -10,12 +10,13 @@ React + Vite + Tailwind in `app/`. Supabase for Postgres, Auth, and an optional 
 
 ## What’s in the app
 
-- **Home** — morning cue, streak, recent dreams, 12-week recall, voice left today
-- **Write now / New dream** — dump, full entry, or voice (2 recordings per UTC day, 5 minutes each; audio is discarded)
-- **Dreams** — search and filters (date, lucidity, induction, tags, favorites, notes)
+- **Home** — morning cue, tonight’s line, streak, recent dreams, 12-week recall
+- **Write now / New dream** — dump, full entry, or voice (2 recordings per UTC day, 5 minutes each)
+- **Dreams** — search, filters, same-night grouping; Tags from the header
+- **Tag page** — span, lucidity, related tags, the dreams themselves
 - **Stats** — Recall, Lucid, Patterns (emotion radar, top tags, pairs)
 - **Tags** — rename, merge, color
-- **Settings** — appearance and list defaults (synced to your profile), auto-tag, auto-lock, emotion-scan beta, export
+- **Settings** — appearance (synced to your profile), auto-tag, auto-lock, emotion-scan beta, export and import
 
 ## Run locally
 

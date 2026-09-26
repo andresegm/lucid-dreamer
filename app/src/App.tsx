@@ -11,6 +11,7 @@ import { DreamDetailPage } from '@/pages/DreamDetailPage'
 import { DreamFormPage } from '@/pages/DreamFormPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { TagsPage } from '@/pages/TagsPage'
+import { TagPage } from '@/pages/TagPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { CapturePage } from '@/pages/CapturePage'
 import { Spinner } from '@/components/ui'
@@ -44,6 +45,7 @@ function Gate() {
         <Route path="capture" element={<CapturePage />} />
         <Route path="stats" element={<StatsPage />} />
         <Route path="tags" element={<TagsPage />} />
+        <Route path="tag/:id" element={<TagPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

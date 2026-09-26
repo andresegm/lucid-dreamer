@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, Tags } from 'lucide-react'
 import { fetchDreams, fetchTags, setFavorite } from '@/lib/api'
 import type { Dream, Tag } from '@/lib/types'
 import { useSettings } from '@/lib/settings'
@@ -9,6 +9,8 @@ import { FilterBar } from '@/components/FilterBar'
 import { DreamCard } from '@/components/DreamCard'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState, ErrorBox, PageHeader, Skeleton } from '@/components/ui'
+import { groupNights } from '@/lib/nights'
+import { fmtDate } from '@/lib/format'
 
 export function DreamsPage() {
   const { settings } = useSettings()
@@ -53,9 +55,12 @@ export function DreamsPage() {
         title="Dreams"
         subtitle={loading ? 'Loading…' : `${count.toLocaleString()} ${count === 1 ? 'entry' : 'entries'}${activeCount ? ' match your filters' : ''}`}
         actions={
-          <button className="btn btn-primary shrink-0" onClick={() => navigate('/new')}>
-            <Plus size={16} /> New dream
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/tags" className="btn"><Tags size={16} /> Tags</Link>
+            <button className="btn btn-primary" onClick={() => navigate('/new')}>
+              <Plus size={16} /> New dream
+            </button>
+          </div>
         }
       />
 
@@ -84,9 +89,26 @@ export function DreamsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-[var(--gap)] min-w-0">
-            {rows.map((d) => (
-              <DreamCard key={d.id} dream={d} showPreview={settings.showPreview} onToggleFavorite={toggleFav} />
+          <div className="grid gap-6 min-w-0">
+            {(filters.sort === 'title' ? [{ date: '', items: rows }] : groupNights(rows)).map((night) => (
+              <section key={night.date || 'list'} className="min-w-0">
+                {night.date && night.items.length > 1 && (
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+                    {fmtDate(night.date, 'EEE, MMM d')} · {night.items.length} entries
+                  </h2>
+                )}
+                <div className="grid gap-[var(--gap)] min-w-0">
+                  {night.items.map((d, i) => (
+                    <DreamCard
+                      key={d.id}
+                      dream={d}
+                      showPreview={settings.showPreview}
+                      onToggleFavorite={toggleFav}
+                      hideDate={Boolean(night.date && night.items.length > 1 && i > 0)}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
           <Pagination page={page} pageSize={settings.pageSize} total={count} onChange={setPage} />
