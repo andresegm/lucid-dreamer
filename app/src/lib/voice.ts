@@ -2,6 +2,22 @@ import { supabase } from './supabase'
 
 /** Hard cap so a forgotten Record tap cannot run all day. ~5 min ≈ $0.03. */
 export const MAX_RECORD_MS = 5 * 60 * 1000
+/** Keep in sync with claim_voice_use() in supabase/voice.sql */
+export const VOICE_DAILY_LIMIT = 2
+
+export interface VoiceQuota {
+  used: number
+  remaining: number
+  limit: number
+}
+
+export async function fetchVoiceQuota(): Promise<VoiceQuota> {
+  const today = new Date().toISOString().slice(0, 10)
+  const { data, error } = await supabase.from('voice_daily').select('used').eq('day', today).maybeSingle()
+  if (error) return { used: 0, remaining: VOICE_DAILY_LIMIT, limit: VOICE_DAILY_LIMIT }
+  const used = typeof data?.used === 'number' ? data.used : 0
+  return { used, remaining: Math.max(0, VOICE_DAILY_LIMIT - used), limit: VOICE_DAILY_LIMIT }
+}
 
 export function appendTranscript(prev: string, next: string): string {
   const t = next.trim()
@@ -20,7 +36,7 @@ export function voiceSupported(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
 }
 
-export async function transcribeBlob(blob: Blob): Promise<string> {
+export async function transcribeBlob(blob: Blob): Promise<{ text: string; remaining?: number }> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('Unlock the journal first.')
   const url = import.meta.env.VITE_SUPABASE_URL
@@ -39,12 +55,13 @@ export async function transcribeBlob(blob: Blob): Promise<string> {
     },
     body: fd,
   })
-  const data = await r.json().catch(() => ({})) as { text?: string; error?: string; msg?: string }
+  const data = await r.json().catch(() => ({})) as { text?: string; error?: string; msg?: string; remaining?: number }
   if (r.status === 404) throw new Error('Voice is not deployed yet. See the README for the one-time setup.')
+  if (r.status === 429) throw new Error(data.error || 'Each account can record twice a day (5 minutes each).')
   if (!r.ok) throw new Error(data.error || data.msg || 'Transcription failed.')
   const text = (data.text ?? '').trim()
   if (!text) throw new Error('No words came through. Try again a little closer to the mic.')
-  return text
+  return { text, remaining: typeof data.remaining === 'number' ? data.remaining : undefined }
 }
 
 export interface Recorder {

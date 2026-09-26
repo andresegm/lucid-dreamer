@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
+const DAILY_LIMIT = 2
+const LIMIT_MSG = 'Each account can record twice a day (5 minutes each).'
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -38,6 +41,10 @@ Deno.serve(async (req) => {
   if (!(audio instanceof File) || audio.size === 0) return json({ error: 'Missing audio' }, 400)
   if (audio.size > 24 * 1024 * 1024) return json({ error: 'Recording is too long' }, 413)
 
+  const { data: used, error: claimErr } = await supabase.rpc('claim_voice_use')
+  if (claimErr) return json({ error: 'Could not check the daily voice limit.' }, 500)
+  if (used === -1) return json({ error: LIMIT_MSG, remaining: 0, limit: DAILY_LIMIT }, 429)
+
   const body = new FormData()
   body.append('file', audio, audio.name || 'dream.webm')
   body.append('model', 'whisper-1')
@@ -47,7 +54,14 @@ Deno.serve(async (req) => {
     headers: { Authorization: `Bearer ${key}` },
     body,
   })
-  if (!r.ok) return json({ error: 'Transcription failed. Try again in a moment.' }, 502)
+  if (!r.ok) {
+    await supabase.rpc('release_voice_use')
+    return json({ error: 'Transcription failed. Try again in a moment.' }, 502)
+  }
   const data = await r.json() as { text?: string }
-  return json({ text: (data.text ?? '').trim() })
+  return json({
+    text: (data.text ?? '').trim(),
+    remaining: Math.max(0, DAILY_LIMIT - Number(used)),
+    limit: DAILY_LIMIT,
+  })
 })

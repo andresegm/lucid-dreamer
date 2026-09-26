@@ -263,6 +263,29 @@ export async function appendDreamTags(rows: { dream_id: string; tag_id: string }
   }
 }
 
+export interface ProfileRow {
+  settings: Record<string, unknown>
+  stats: Record<string, unknown>
+}
+
+export async function fetchProfile(): Promise<ProfileRow | null> {
+  const { data, error } = await supabase.from('profiles').select('settings, stats').maybeSingle()
+  if (error) throw error
+  return (data as ProfileRow | null) ?? null
+}
+
+export async function saveProfile(patch: { settings?: unknown; stats?: unknown }): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const uid = sessionData.session?.user.id
+  if (!uid) return
+  const { error } = await supabase.from('profiles').upsert({
+    id: uid,
+    ...patch,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) throw error
+}
+
 /** Everything, for export. */
 export async function fetchAllFull(): Promise<Dream[]> {
   const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).order('date', { ascending: true })

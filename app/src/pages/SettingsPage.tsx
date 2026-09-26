@@ -48,7 +48,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl fade-in">
-      <PageHeader title="Settings" subtitle="Make it yours. Appearance stays on this device; dreams stay on your account." />
+      <PageHeader title="Settings" subtitle="Make it yours. Preferences follow your account on any device." />
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Account</h2>
@@ -108,7 +108,7 @@ export function SettingsPage() {
         <h2 className="font-semibold mb-1">Writing</h2>
         <p className="text-xs text-muted mb-4">
           Auto-tagging reads your dream as you write and matches your existing tags (people, places…) plus common themes, techniques, and feelings (fear, awe, joy…). Optional emotion chips on Write now / New dream.
-          Record on Write now / New dream listens, turns speech into text, then discards the audio. Whisper is billed to your OpenAI key (~$0.006 per minute).
+          Record on Write now / New dream listens, turns speech into text, then discards the audio. Each account can record twice a day, 5 minutes each. Whisper is billed to your OpenAI key (~$0.006 per minute).
         </p>
         <Field label="Auto-tagging" hint={{ auto: 'Matching tags are added while you write. Remove one and it stays removed.', suggest: 'Matching tags are shown as chips under the tag field; click to add.', off: 'Tags are only added manually.' }[settings.autoTag]}>
           <Segmented<AutoTagMode> value={settings.autoTag} onChange={(autoTag) => update({ autoTag })} options={[{ value: 'auto', label: 'Automatic' }, { value: 'suggest', label: 'Suggest' }, { value: 'off', label: 'Off' }]} />

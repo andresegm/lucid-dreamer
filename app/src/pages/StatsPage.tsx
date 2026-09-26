@@ -6,22 +6,17 @@ import { fetchAllLite } from '@/lib/api'
 import { EMOTIONS } from '@/lib/emotions'
 import type { DreamLite, Lucidity } from '@/lib/types'
 import { computeStats, trendSeries, type Granularity, type Range } from '@/lib/stats'
+import { useSettings, type StatsPanel } from '@/lib/settings'
 import { fmtDate } from '@/lib/format'
 import { EmotionRadar, HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
 import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
-type Panel = 'recall' | 'lucid' | 'patterns'
-
-const PREF_KEY = 'ldj.stats.prefs'
-interface Prefs { range: Range; includeNotes: boolean; series: Record<Lucidity, boolean>; granularity: Granularity | 'auto'; panel: Panel }
-const DEFAULT_PREFS: Prefs = { range: 'all', includeNotes: false, series: { lucid: true, 'semi-lucid': true, 'non-lucid': true }, granularity: 'auto', panel: 'lucid' }
-
 const COLORS = { lucid: 'var(--lucid)', semi: 'var(--semi)', non: 'var(--nonlucid)' }
 const METHOD_PALETTE = ['var(--accent)', 'var(--lucid)', 'var(--semi)', '#34d399', '#fb7185', '#e879f9', '#94a3b8', '#f97316']
 
-function panelFromHash(hash: string): Panel | null {
+function panelFromHash(hash: string): StatsPanel | null {
   if (hash === '#recall' || hash === '#recall-tips') return 'recall'
   if (hash === '#lucid') return 'lucid'
   if (hash === '#patterns') return 'patterns'
@@ -31,19 +26,14 @@ function panelFromHash(hash: string): Panel | null {
 export function StatsPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { statsPrefs: prefs, updateStats } = useSettings()
   const [data, setData] = useState<DreamLite[] | null>(null)
   const [error, setError] = useState<unknown>(null)
-  const [prefs, setPrefs] = useState<Prefs>(() => {
-    let base = DEFAULT_PREFS
-    try { base = { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') } } catch { /* ignore */ }
-    return panelFromHash(window.location.hash) ? { ...base, panel: panelFromHash(window.location.hash)! } : base
-  })
-  useEffect(() => localStorage.setItem(PREF_KEY, JSON.stringify(prefs)), [prefs])
   useEffect(() => { fetchAllLite().then(setData).catch(setError) }, [])
   useEffect(() => {
     const next = panelFromHash(location.hash)
-    if (next && next !== prefs.panel) setPrefs((p) => ({ ...p, panel: next }))
-  }, [location.hash]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (next && next !== prefs.panel) updateStats({ panel: next })
+  }, [location.hash, prefs.panel, updateStats])
 
   const stats = useMemo(() => (data ? computeStats({ dreams: data, range: prefs.range, includeNotes: prefs.includeNotes, series: prefs.series }) : null), [data, prefs])
   const granularity: Granularity = prefs.granularity === 'auto' ? stats?.autoGranularity ?? 'month' : prefs.granularity
@@ -86,9 +76,9 @@ export function StatsPage() {
     { key: 'lucid', color: COLORS.lucid, name: 'Lucid', on: prefs.series.lucid },
   ].filter((s) => s.on)
 
-  const toggleSeries = (k: Lucidity) => setPrefs((p) => ({ ...p, series: { ...p.series, [k]: !p.series[k] } }))
-  const setPanel = (panel: Panel) => {
-    setPrefs((p) => ({ ...p, panel }))
+  const toggleSeries = (k: Lucidity) => updateStats({ series: { ...prefs.series, [k]: !prefs.series[k] } })
+  const setPanel = (panel: StatsPanel) => {
+    updateStats({ panel })
     if (location.hash !== `#${panel}`) navigate({ pathname: '/stats', hash: panel }, { replace: true })
   }
   const openTag = (name: string) => {
@@ -104,7 +94,7 @@ export function StatsPage() {
         actions={
           <Segmented<Range>
             value={prefs.range}
-            onChange={(range) => setPrefs((p) => ({ ...p, range }))}
+            onChange={(range) => updateStats({ range })}
             options={[{ value: '30d', label: '30d' }, { value: '3m', label: '3m' }, { value: '6m', label: '6m' }, { value: '1y', label: '1y' }, { value: 'all', label: 'All' }]}
           />
         }
@@ -123,11 +113,11 @@ export function StatsPage() {
         {prefs.panel === 'lucid' && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted">Trend</span>
-            <Segmented<Granularity | 'auto'> value={prefs.granularity} onChange={(granularity) => setPrefs((p) => ({ ...p, granularity }))} options={[{ value: 'auto', label: 'Auto' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]} />
+            <Segmented<Granularity | 'auto'> value={prefs.granularity} onChange={(granularity) => updateStats({ granularity })} options={[{ value: 'auto', label: 'Auto' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]} />
           </div>
         )}
         <div className="ml-auto">
-          <Switch checked={prefs.includeNotes} onChange={(includeNotes) => setPrefs((p) => ({ ...p, includeNotes }))} label={<span className="text-muted text-xs">Count notes in streaks</span>} />
+          <Switch checked={prefs.includeNotes} onChange={(includeNotes) => updateStats({ includeNotes })} label={<span className="text-muted text-xs">Count notes in streaks</span>} />
         </div>
       </div>
 
@@ -139,7 +129,7 @@ export function StatsPage() {
       </div>
 
       <div className="mb-4">
-        <Segmented<Panel>
+        <Segmented<StatsPanel>
           className="w-full max-w-md [&>button]:flex-1"
           value={prefs.panel}
           onChange={setPanel}

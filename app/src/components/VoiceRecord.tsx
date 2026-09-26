@@ -1,12 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, Square } from 'lucide-react'
 import clsx from 'clsx'
-import { MAX_RECORD_MS, startRecorder, transcribeBlob, voiceSupported, type Recorder } from '@/lib/voice'
+import {
+  fetchVoiceQuota,
+  MAX_RECORD_MS,
+  startRecorder,
+  transcribeBlob,
+  voiceSupported,
+  VOICE_DAILY_LIMIT,
+  type Recorder,
+  type VoiceQuota,
+} from '@/lib/voice'
 import { Spinner } from '@/components/ui'
 
 function fmtElapsed(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+function limitMessage() {
+  return `Each account can record twice a day (${VOICE_DAILY_LIMIT} × 5 min).`
 }
 
 export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => void }) {
@@ -15,7 +28,14 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
   const [phase, setPhase] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [quota, setQuota] = useState<VoiceQuota | null>(null)
   const supported = voiceSupported()
+  const remaining = quota?.remaining ?? VOICE_DAILY_LIMIT
+  const atLimit = remaining <= 0
+
+  useEffect(() => {
+    void fetchVoiceQuota().then(setQuota)
+  }, [])
 
   async function finish() {
     if (finishing.current) return
@@ -26,10 +46,14 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
     try {
       const blob = r ? await r.stop() : null
       if (!blob || blob.size < 200) throw new Error('That take was empty. Hold a moment after you tap Record.')
-      const text = await transcribeBlob(blob)
+      const { text, remaining: next } = await transcribeBlob(blob)
       onTranscript(text)
+      if (typeof next === 'number') setQuota({ used: VOICE_DAILY_LIMIT - next, remaining: next, limit: VOICE_DAILY_LIMIT })
+      else void fetchVoiceQuota().then(setQuota)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      void fetchVoiceQuota().then(setQuota)
     } finally {
       finishing.current = false
       setPhase('idle')
@@ -57,6 +81,12 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
     }
     setError(null)
     try {
+      const q = await fetchVoiceQuota()
+      setQuota(q)
+      if (q.remaining <= 0) {
+        setError(limitMessage())
+        return
+      }
       rec.current = await startRecorder()
       finishing.current = false
       setElapsed(0)
@@ -75,7 +105,7 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
         type="button"
         className={clsx('btn', phase === 'recording' && 'btn-danger')}
         onClick={() => void toggle()}
-        disabled={phase === 'transcribing'}
+        disabled={phase === 'transcribing' || (atLimit && phase === 'idle')}
         aria-pressed={phase === 'recording'}
       >
         {phase === 'transcribing' ? <Spinner /> : phase === 'recording' ? <Square size={16} /> : <Mic size={16} />}
@@ -83,10 +113,16 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
           ? 'Transcribing…'
           : phase === 'recording'
             ? `Stop · ${fmtElapsed(elapsed)} / ${fmtElapsed(MAX_RECORD_MS)}`
-            : 'Record'}
+            : atLimit
+              ? 'Limit reached'
+              : 'Record'}
       </button>
       {phase === 'idle' && !error && (
-        <p className="text-[11px] text-faint">Stops automatically at 5 min</p>
+        <p className="text-[11px] text-faint">
+          {atLimit
+            ? '2 recordings used today · resets tomorrow'
+            : `Stops at 5 min · ${remaining} left today`}
+        </p>
       )}
       {error && <p className="text-xs text-danger max-w-xs text-right">{error}</p>}
     </div>
