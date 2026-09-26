@@ -37,12 +37,12 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
     .slice(0, tagQuery ? 60 : 24)
 
   return (
-    <div className="card mb-4 fade-in" style={{ padding: '0.75rem' }}>
+    <div className="card mb-4 fade-in min-w-0 max-w-full overflow-hidden" style={{ padding: '0.75rem' }}>
       {/* Top row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
+        <div className="relative flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-          <input className="input pl-9 pr-8" placeholder="Search dreams…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9 pr-8 min-w-0" placeholder="Search dreams…" value={q} onChange={(e) => setQ(e.target.value)} />
           {q && (
             <button className="absolute right-2 top-1/2 -translate-y-1/2 text-faint hover:text-fg" onClick={() => setQ('')} aria-label="Clear search">
               <X size={14} />
@@ -50,14 +50,14 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
           )}
         </div>
 
-        <button className={clsx('btn', filters.favorites && 'chip-active')} onClick={() => onChange({ favorites: !filters.favorites })} title="Favorites only">
+        <button className={clsx('btn shrink-0', filters.favorites && 'chip-active')} onClick={() => onChange({ favorites: !filters.favorites })} title="Favorites only">
           <Star size={16} className={filters.favorites ? 'fill-current' : ''} />
           <span className="hidden sm:inline">Favorites</span>
         </button>
 
         <SortMenu value={filters.sort} onChange={(sort) => onChange({ sort })} />
 
-        <button className={clsx('btn', open && 'chip-active')} onClick={() => setOpen((o) => !o)}>
+        <button className={clsx('btn shrink-0', open && 'chip-active')} onClick={() => setOpen((o) => !o)}>
           <SlidersHorizontal size={16} />
           <span className="hidden sm:inline">Filters</span>
           {activeCount > 0 && (
@@ -70,7 +70,7 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
       </div>
 
       {/* Quick lucidity chips always visible */}
-      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+      <div className="flex flex-wrap items-center gap-1.5 mt-3 min-w-0">
         {LUCIDITY_OPTIONS.map((o) => (
           <button
             key={o.value}
@@ -81,7 +81,7 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
             {o.label}
           </button>
         ))}
-        <span className="ml-auto text-xs text-muted">{total.toLocaleString()} {total === 1 ? 'entry' : 'entries'}</span>
+        <span className="sm:ml-auto text-xs text-muted basis-full sm:basis-auto">{total.toLocaleString()} {total === 1 ? 'entry' : 'entries'}</span>
         {activeCount > 0 && (
           <button className="chip chip-btn" onClick={onClear}>
             <X size={12} /> Clear all
@@ -95,10 +95,10 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <span className="label flex items-center gap-1.5"><Calendar size={12} /> Date range</span>
-              <div className="flex items-center gap-2">
-                <input type="date" className="input" value={filters.from ?? ''} onChange={(e) => onChange({ from: e.target.value || null })} />
-                <span className="text-faint text-xs">to</span>
-                <input type="date" className="input" value={filters.to ?? ''} onChange={(e) => onChange({ to: e.target.value || null })} />
+              <div className="flex items-center gap-2 min-w-0">
+                <input type="date" className="input min-w-0 flex-1" value={filters.from ?? ''} onChange={(e) => onChange({ from: e.target.value || null })} />
+                <span className="text-faint text-xs shrink-0">to</span>
+                <input type="date" className="input min-w-0 flex-1" value={filters.to ?? ''} onChange={(e) => onChange({ to: e.target.value || null })} />
               </div>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {[

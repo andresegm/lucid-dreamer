@@ -48,12 +48,12 @@ export function DreamsPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full">
       <PageHeader
         title="Dreams"
         subtitle={loading ? 'Loading…' : `${count.toLocaleString()} ${count === 1 ? 'entry' : 'entries'}${activeCount ? ' match your filters' : ''}`}
         actions={
-          <button className="btn btn-primary" onClick={() => navigate('/new')}>
+          <button className="btn btn-primary shrink-0" onClick={() => navigate('/new')}>
             <Plus size={16} /> New dream
           </button>
         }
@@ -64,11 +64,11 @@ export function DreamsPage() {
       {error ? (
         <ErrorBox error={error} retry={load} />
       ) : loading ? (
-        <div className="grid gap-[var(--gap)]">
+        <div className="grid gap-[var(--gap)] min-w-0">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card flex gap-3">
-              <Skeleton className="h-16 w-14" />
-              <div className="flex-1 space-y-2">
+            <div key={i} className="card flex gap-3 min-w-0 max-w-full overflow-hidden">
+              <Skeleton className="h-16 w-14 shrink-0" />
+              <div className="flex-1 min-w-0 space-y-2">
                 <Skeleton className="h-4 w-1/2" />
                 <Skeleton className="h-3 w-1/3" />
                 <Skeleton className="h-3 w-full" />
@@ -84,7 +84,7 @@ export function DreamsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-[var(--gap)]">
+          <div className="grid gap-[var(--gap)] min-w-0">
             {rows.map((d) => (
               <DreamCard key={d.id} dream={d} showPreview={settings.showPreview} onToggleFavorite={toggleFav} />
             ))}

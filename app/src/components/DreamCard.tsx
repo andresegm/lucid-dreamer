@@ -7,11 +7,11 @@ import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/
 export function DreamCard({ dream, showPreview, onToggleFavorite }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void }) {
   const isNote = dream.entry_type === 'note'
   return (
-    <Link to={`/dream/${dream.id}`} className="card card-hover block fade-in group">
-      <div className="flex items-start gap-3">
+    <Link to={`/dream/${dream.id}`} className="card card-hover block fade-in group min-w-0 max-w-full overflow-hidden">
+      <div className="flex items-start gap-3 min-w-0">
         <DateBadge iso={dream.date} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex items-start gap-2 min-w-0">
             <h3 className="font-semibold leading-snug flex-1 min-w-0 truncate">{dream.title || 'Untitled'}</h3>
             {onToggleFavorite && (
               <button
@@ -27,19 +27,19 @@ export function DreamCard({ dream, showPreview, onToggleFavorite }: { dream: Dre
               </button>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5 min-w-0">
             {isNote ? (
-              <span className="chip pill-note"><StickyNote size={11} /> Note</span>
+              <span className="chip pill-note max-w-full truncate"><StickyNote size={11} className="shrink-0" /> Note</span>
             ) : (
-              <span className={clsx('chip', lucidityClass(dream.lucidity))}>{lucidityLabel(dream.lucidity)}</span>
+              <span className={clsx('chip max-w-full truncate', lucidityClass(dream.lucidity))}>{lucidityLabel(dream.lucidity)}</span>
             )}
-            {dream.induction_method && <span className="chip">{dream.induction_method}</span>}
+            {dream.induction_method && <span className="chip max-w-full truncate">{dream.induction_method}</span>}
             {dream.tags.slice(0, 4).map((t) => (
-              <span key={t.id} className="chip" style={tagChipStyle(t.color)}>{t.name}</span>
+              <span key={t.id} className="chip max-w-full truncate" style={tagChipStyle(t.color)}>{t.name}</span>
             ))}
             {dream.tags.length > 4 && <span className="chip text-faint">+{dream.tags.length - 4}</span>}
           </div>
-          {showPreview && dream.description && <p className="text-sm text-muted mt-2 leading-relaxed line-clamp-3">{excerpt(dream.description, 300)}</p>}
+          {showPreview && dream.description && <p className="text-sm text-muted mt-2 leading-relaxed line-clamp-3 break-words">{excerpt(dream.description, 300)}</p>}
         </div>
       </div>
     </Link>
