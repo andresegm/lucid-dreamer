@@ -1,11 +1,12 @@
 import { differenceInCalendarDays, format, parseISO, startOfMonth, startOfYear, subDays } from 'date-fns'
 import type { DreamLite, Lucidity } from './types'
 
-export type Range = 'all' | '1y' | '6m' | '3m' | '30d'
+export type Range = 'all' | '1y' | '6m' | '3m' | '30d' | '7d'
 export type Granularity = 'month' | 'year'
 
 export function rangeStart(r: Range, now = new Date()): Date | null {
   switch (r) {
+    case '7d': return subDays(now, 7)
     case '30d': return subDays(now, 30)
     case '3m': return subDays(now, 91)
     case '6m': return subDays(now, 182)

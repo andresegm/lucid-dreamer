@@ -10,6 +10,7 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
+import { keepTextareaAboveKeyboard } from '@/lib/useKeyboardInset'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
@@ -290,6 +291,17 @@ function AutoTextarea({ value, onChange, placeholder }: { value: string; onChang
     if (!el) return
     el.style.height = 'auto'
     el.style.height = Math.max(240, el.scrollHeight) + 'px'
+    if (document.activeElement === el) keepTextareaAboveKeyboard(el)
   }, [value])
-  return <textarea ref={ref} className="input text-base min-h-[240px]" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  return (
+    <textarea
+      ref={ref}
+      className="input text-base min-h-[240px]"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
+      onSelect={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
+    />
+  )
 }

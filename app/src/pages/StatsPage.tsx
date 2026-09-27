@@ -95,7 +95,7 @@ export function StatsPage() {
           <Segmented<Range>
             value={prefs.range}
             onChange={(range) => updateStats({ range })}
-            options={[{ value: '30d', label: '30d' }, { value: '3m', label: '3m' }, { value: '6m', label: '6m' }, { value: '1y', label: '1y' }, { value: 'all', label: 'All' }]}
+            options={[{ value: '7d', label: '7d' }, { value: '30d', label: '30d' }, { value: '3m', label: '3m' }, { value: '6m', label: '6m' }, { value: '1y', label: '1y' }, { value: 'all', label: 'All' }]}
           />
         }
       />
