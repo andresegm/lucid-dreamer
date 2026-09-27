@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen,
   Brain,
@@ -36,16 +36,18 @@ function sectionFromHash(hash: string): LearnSectionId | null {
 
 export function LearnPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [active, setActive] = useState<LearnSectionId>(() => sectionFromHash(location.hash) ?? 'basics')
+  const ignoreObsUntil = useRef(0)
 
   useEffect(() => {
     const next = sectionFromHash(location.hash)
-    if (next) {
-      setActive(next)
-      requestAnimationFrame(() =>
-        document.getElementById(next)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-      )
-    }
+    if (!next) return
+    setActive(next)
+    ignoreObsUntil.current = Date.now() + 800
+    requestAnimationFrame(() =>
+      document.getElementById(next)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    )
   }, [location.hash])
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function LearnPage() {
     if (!nodes.length) return
     const observer = new IntersectionObserver(
       (entries) => {
+        if (Date.now() < ignoreObsUntil.current) return
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
@@ -66,9 +69,12 @@ export function LearnPage() {
 
   function go(id: LearnSectionId) {
     setActive(id)
-    const el = document.getElementById(id)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    history.replaceState(null, '', `#${id}`)
+    ignoreObsUntil.current = Date.now() + 800
+    if (location.hash === `#${id}`) {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      navigate({ pathname: '/learn', hash: id }, { replace: true })
+    }
   }
 
   return (
@@ -211,7 +217,7 @@ export function LearnPage() {
 
 function Section({ id, children }: { id: LearnSectionId; children: ReactNode }) {
   return (
-    <section id={id} className="card scroll-mt-20">
+    <section id={id} className="card scroll-mt-24">
       {children}
     </section>
   )
