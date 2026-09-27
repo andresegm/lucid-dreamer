@@ -15,6 +15,7 @@ React + Vite + Tailwind in `app/`. Supabase for Postgres, Auth, and an optional 
 - **Dreams** — search, filters, same-night grouping; Tags from the header
 - **Tag page** — span, lucidity, related tags, the dreams themselves
 - **Stats** — Recall, Lucid, Patterns (emotion radar, top tags, pairs)
+- **Learn** — lucid dreaming basics, sleep stages, recall, journaling, induction methods
 - **Tags** — rename, merge, color
 - **Settings** — appearance (synced to your profile), auto-tag, auto-lock, emotion-scan beta, export and import
 

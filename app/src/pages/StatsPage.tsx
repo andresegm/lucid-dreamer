@@ -164,7 +164,10 @@ export function StatsPage() {
 
       {prefs.panel === 'lucid' && (
         <div className="grid gap-4 fade-in">
-          <p className="text-sm text-muted -mt-1">How often you notice you’re dreaming, and which methods show up.</p>
+          <p className="text-sm text-muted -mt-1">
+            How often you notice you’re dreaming, and which methods show up.{' '}
+            <Link to="/learn#methods" className="text-muted hover:text-fg underline-offset-2 hover:underline">What the labels mean</Link>
+          </p>
           <div className="grid lg:grid-cols-2 gap-[var(--gap)]">
             <div className="card">
               <div className="flex items-center justify-between mb-2">

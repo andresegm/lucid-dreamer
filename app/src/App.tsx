@@ -14,6 +14,7 @@ import { TagsPage } from '@/pages/TagsPage'
 import { TagPage } from '@/pages/TagPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { CapturePage } from '@/pages/CapturePage'
+import { LearnPage } from '@/pages/LearnPage'
 import { Spinner } from '@/components/ui'
 
 function Gate() {
@@ -47,6 +48,7 @@ function Gate() {
         <Route path="tags" element={<TagsPage />} />
         <Route path="tag/:id" element={<TagPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="learn" element={<LearnPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="/login" element={<Navigate to="/" replace />} />

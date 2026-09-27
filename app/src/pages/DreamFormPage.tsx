@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
 import { createDream, ensureTags, fetchDream, fetchTags, updateDream } from '@/lib/api'
@@ -206,7 +206,11 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
         {f.entry_type === 'dream' && f.lucidity !== 'non-lucid' && (
           <div className="card fade-in" style={{ borderColor: 'color-mix(in srgb, var(--lucid) 35%, transparent)' }}>
-            <Field label="Induction method" hint={f.induction_method && f.induction_method !== 'other' ? INDUCTION_DESCRIPTIONS[f.induction_method as keyof typeof INDUCTION_DESCRIPTIONS] : 'How did you become lucid?'}>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span className="label mb-0">Induction method</span>
+              <Link to="/learn#methods" className="text-xs text-muted hover:text-fg shrink-0">What these mean</Link>
+            </div>
+            <div>
               <div className="flex flex-wrap gap-1.5">
                 {INDUCTION_METHODS.map((m) => (
                   <button key={m} type="button" className={clsx('chip chip-btn', f.induction_method === m && 'chip-active')} onClick={() => set('induction_method', f.induction_method === m ? '' : m)}>
@@ -220,7 +224,12 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               {f.induction_method === 'other' && (
                 <input className="input mt-2" placeholder="Custom method name" value={f.induction_custom} onChange={(e) => set('induction_custom', e.target.value)} />
               )}
-            </Field>
+              <p className="text-xs text-faint mt-1.5">
+                {f.induction_method && f.induction_method !== 'other'
+                  ? INDUCTION_DESCRIPTIONS[f.induction_method as keyof typeof INDUCTION_DESCRIPTIONS]
+                  : 'How did you become lucid?'}
+              </p>
+            </div>
             <Field label="Induction notes" className="mt-4">
               <input className="input" placeholder="e.g. Woke at 4am, WBTB for 30 min, counted breaths…" value={f.induction_notes} onChange={(e) => set('induction_notes', e.target.value)} />
             </Field>

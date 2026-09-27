@@ -32,7 +32,7 @@ export function RecallTipsCard() {
       <button type="button" className="w-full flex items-center justify-between gap-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <div>
           <h2 className="font-semibold">Tips to increase recall</h2>
-          <p className="text-xs text-muted mt-0.5">Protect REM, catch the dream on waking, then practice — lucidity later.</p>
+          <p className="text-xs text-muted mt-0.5">Protect REM, catch the dream on waking, then practice — lucidity later. <Link to="/learn#recall" className="hover:text-fg underline-offset-2 hover:underline">Learn more</Link></p>
         </div>
         <ChevronDown size={18} className={clsx('text-muted shrink-0 transition-transform', open && 'rotate-180')} />
       </button>
