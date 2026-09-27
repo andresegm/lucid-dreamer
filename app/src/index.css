@@ -67,6 +67,10 @@
 
 /* ---------- Base ---------- */
 html, body, #root { height: 100%; overflow-x: clip; }
+html[data-keyboard-open="1"] {
+  /* Avoid rubber-banding past the keyboard while composing */
+  overscroll-behavior-y: contain;
+}
 
 /* Clear the notch / status bar so titles and header buttons stay tappable. */
 .app-main {

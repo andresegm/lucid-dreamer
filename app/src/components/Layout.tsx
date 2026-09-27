@@ -1,7 +1,8 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, ChartPie, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth'
+import { useKeyboardInset } from '@/lib/useKeyboardInset'
 
 const SIDEBAR = [
   { to: '/', label: 'Home', icon: Home, end: true },
@@ -21,6 +22,13 @@ const MOBILE = [
 export function Layout() {
   const { signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const keyboardInset = useKeyboardInset()
+  const writing =
+    location.pathname === '/capture' ||
+    location.pathname === '/new' ||
+    /^\/dream\/[^/]+\/edit$/.test(location.pathname)
+  const hideMobileNav = keyboardInset > 60 || writing
 
   return (
     <div className="ambient min-h-full md:grid md:grid-cols-[240px_1fr]">
@@ -55,22 +63,27 @@ export function Layout() {
       </aside>
 
       {/* Main */}
-      <main className="relative z-10 min-w-0 overflow-x-clip max-w-6xl w-full mx-auto pb-28 md:py-8 app-main">
+      <main
+        className={clsx('relative z-10 min-w-0 overflow-x-clip max-w-6xl w-full mx-auto md:py-8 app-main', !hideMobileNav && 'pb-28')}
+        style={{ paddingBottom: hideMobileNav ? `max(1rem, var(--keyboard-inset, 0px))` : undefined }}
+      >
         <Outlet />
       </main>
 
-      {/* Bottom nav (mobile) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 82%, transparent)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="grid grid-cols-5 items-center px-2 py-1.5">
-          {MOBILE.slice(0, 2).map((n) => <MobileItem key={n.to} {...n} />)}
-          <button onClick={() => navigate('/capture')} className="flex justify-center" aria-label="Write now">
-            <span className="h-12 w-12 -mt-6 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'var(--accent)', boxShadow: '0 12px 30px -10px var(--accent)' }}>
-              <Plus color="var(--accent-contrast)" />
-            </span>
-          </button>
-          {MOBILE.slice(2).map((n) => <MobileItem key={n.to} {...n} />)}
-        </div>
-      </nav>
+      {/* Bottom nav (mobile) — hide while writing / keyboard open so it doesn’t cover the field */}
+      {!hideMobileNav && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--bg) 82%, transparent)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="grid grid-cols-5 items-center px-2 py-1.5">
+            {MOBILE.slice(0, 2).map((n) => <MobileItem key={n.to} {...n} />)}
+            <button onClick={() => navigate('/capture')} className="flex justify-center" aria-label="Write now">
+              <span className="h-12 w-12 -mt-6 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'var(--accent)', boxShadow: '0 12px 30px -10px var(--accent)' }}>
+                <Plus color="var(--accent-contrast)" />
+              </span>
+            </button>
+            {MOBILE.slice(2).map((n) => <MobileItem key={n.to} {...n} />)}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }
