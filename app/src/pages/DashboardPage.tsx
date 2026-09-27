@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
-import { BookOpen, Flame, Mic, Moon, Plus, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, Check, Flame, Mic, Moon, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite, fetchDreams, fetchRecallContext, setFavorite } from '@/lib/api'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
@@ -93,7 +93,11 @@ export function DashboardPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted mb-1">{fmtDate(today, 'EEEE, MMM d')}</p>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{greeting()}</h1>
           <p className="text-sm text-muted mt-1">
-            {wroteToday ? 'You already caught tonight. Add another if more comes back.' : 'The first minute is the one that keeps the dream.'}
+            {wroteToday
+              ? cue && cue.todayCount > 1
+                ? `You’ve logged ${cue.todayCount} dreams for today. Add another if more comes back.`
+                : 'You’ve already logged a dream for today. Add another if more comes back.'
+              : 'The first minute after waking is the one that keeps the dream.'}
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/capture')}>
@@ -190,27 +194,68 @@ export function DashboardPage() {
 function TonightCard() {
   const { settings, update } = useSettings()
   const today = todayISO()
-  const written = settings.tonightWrittenOn === today
+  const locked = settings.tonightWrittenOn === today
+  const text = settings.tonightText.trim()
+  const canLock = text.length > 0
+
+  function lock() {
+    if (!canLock) return
+    update({ tonightText: text, tonightWrittenOn: today })
+  }
+
+  function unlock() {
+    update({ tonightWrittenOn: null })
+  }
 
   return (
-    <div className="card mb-4">
-      <h2 className="font-semibold mb-1">Tonight</h2>
-      <p className="text-xs text-muted mb-3">One line before you sleep. Check it when you’ve written it down.</p>
-      <input
-        className="input"
-        placeholder="When I see a clock, I’ll ask if I’m dreaming"
-        value={settings.tonightText}
-        onChange={(e) => update({ tonightText: e.target.value })}
-      />
-      <label className="flex items-center gap-2 mt-3 text-sm cursor-pointer select-none">
+    <div
+      className="card mb-4"
+      style={locked ? { borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' } : undefined}
+    >
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="font-semibold">Tonight’s intention</h2>
+        {locked && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium shrink-0" style={{ color: 'var(--accent)' }}>
+            <Check size={14} /> Set for tonight
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-muted mb-3">
+        {locked
+          ? 'Locked until tomorrow. Hold this as you fall asleep.'
+          : 'One short line to remember as you fall asleep — then lock it so it stays put.'}
+      </p>
+
+      {locked ? (
+        <div className="rounded-xl px-3.5 py-3 text-sm leading-relaxed" style={{ background: 'var(--bg-elev-2)', border: '1px solid var(--border)' }}>
+          {text || '—'}
+        </div>
+      ) : (
         <input
-          type="checkbox"
-          className="accent-[var(--accent)]"
-          checked={written}
-          onChange={(e) => update({ tonightWrittenOn: e.target.checked ? today : null })}
+          className="input"
+          placeholder="When I see a clock, I’ll ask if I’m dreaming"
+          value={settings.tonightText}
+          onChange={(e) => update({ tonightText: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              lock()
+            }
+          }}
         />
-        I wrote it
-      </label>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-3">
+        {locked ? (
+          <button type="button" className="btn btn-ghost text-sm" onClick={unlock}>
+            <Pencil size={14} /> Edit intention
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary" disabled={!canLock} onClick={lock}>
+            <Check size={16} /> Lock for tonight
+          </button>
+        )}
+      </div>
     </div>
   )
 }
