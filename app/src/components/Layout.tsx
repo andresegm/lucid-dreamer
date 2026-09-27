@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BookOpen, ChartPie, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
+import { BookOpen, ChartPie, GraduationCap, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth'
 import { useKeyboardInset } from '@/lib/useKeyboardInset'
@@ -8,6 +8,7 @@ const SIDEBAR = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/dreams', label: 'Dreams', icon: BookOpen },
   { to: '/stats', label: 'Stats', icon: ChartPie },
+  { to: '/learn', label: 'Learn', icon: GraduationCap },
   { to: '/tags', label: 'Tags', icon: Tags },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

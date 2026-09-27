@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
-import { BookOpen, Check, Flame, Mic, Moon, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, Check, Flame, GraduationCap, Mic, Moon, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite, fetchDreams, fetchRecallContext, setFavorite } from '@/lib/api'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
@@ -182,7 +182,7 @@ export function DashboardPage() {
               <Link to="/new" className="btn justify-start"><Plus size={16} /> New dream</Link>
               <Link to="/tags" className="btn justify-start"><Tags size={16} /> Tags</Link>
               <Link to="/stats#lucid" className="btn justify-start"><Sparkles size={16} /> Lucid</Link>
-              <Link to="/stats#patterns" className="btn justify-start"><BookOpen size={16} /> Patterns</Link>
+              <Link to="/learn" className="btn justify-start"><GraduationCap size={16} /> Learn</Link>
             </div>
           </section>
         </div>
