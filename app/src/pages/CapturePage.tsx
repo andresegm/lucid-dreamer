@@ -121,7 +121,7 @@ export function CapturePage() {
   function onTextChange(value: string) {
     setText(value)
     const el = ta.current
-    if (el) keepTextareaAboveKeyboard(el)
+    if (el) keepTextareaAboveKeyboard(el, { pageScroll: !composing })
   }
 
   return (
@@ -178,10 +178,10 @@ export function CapturePage() {
         onKeyDown={onKey}
         onFocus={() => {
           setFocused(true)
-          if (ta.current) keepTextareaAboveKeyboard(ta.current)
+          if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: false })
         }}
         onBlur={() => setFocused(false)}
-        onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current) }}
+        onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: !composing }) }}
       />
 
       {!composing && (

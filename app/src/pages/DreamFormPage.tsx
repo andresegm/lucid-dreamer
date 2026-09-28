@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
@@ -10,7 +10,7 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard } from '@/lib/useKeyboardInset'
+import { keepTextareaAboveKeyboard, useKeyboardInset } from '@/lib/useKeyboardInset'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
@@ -44,7 +44,16 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [loading, setLoading] = useState(mode === 'edit')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dreamCompose, setDreamCompose] = useState(false)
+  const [mobileUi, setMobileUi] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
+  const dreamFieldRef = useRef<HTMLDivElement>(null)
+  const keyboardInset = useKeyboardInset()
+  // Keep Cancel/Save glued above the keyboard while writing the dream body.
+  // Moving focus to tags/title (keyboard ↑) releases the dock; dismissing the
+  // keyboard (✓) also releases once the inset collapses.
+  // Desktop keeps the normal in-flow auto-growing textarea.
+  const docked = dreamCompose && mobileUi
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -58,6 +67,14 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }))
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const sync = () => setMobileUi(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   useEffect(() => {
     if (mode !== 'edit' || !id) return
@@ -87,10 +104,33 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   useEffect(() => { if (!loading) titleRef.current?.focus() }, [loading])
 
+  useEffect(() => {
+    if (keyboardInset < 60 && !dreamFieldRef.current?.contains(document.activeElement)) {
+      setDreamCompose(false)
+    }
+  }, [keyboardInset])
+
+  useEffect(() => {
+    if (!docked) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [docked])
+
   // Lucid implies an induction method is relevant; non-lucid clears it
   useEffect(() => {
     if (f.lucidity === 'non-lucid' && f.induction_method) set('induction_method', '')
   }, [f.lucidity]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function onFormFocusIn(e: FocusEvent<HTMLFormElement>) {
+    const t = e.target as HTMLElement
+    if (t.closest('[data-dream-field]')) {
+      setDreamCompose(true)
+      return
+    }
+    // Keyboard ↑ into tags/title/date undocks the composer chrome.
+    if (t.matches('input, textarea, select')) setDreamCompose(false)
+  }
 
   // Auto-tagging: scan title + description (debounced) for existing tags and keyword rules.
   useEffect(() => {
@@ -163,7 +203,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     )
 
   return (
-    <form onSubmit={submit} className="max-w-3xl fade-in">
+    <form onSubmit={submit} onFocusCapture={onFormFocusIn} className="max-w-3xl fade-in">
       <div className="flex items-center justify-between gap-2 mb-5">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> {mode === 'new' ? 'Cancel' : 'Back'}
@@ -272,45 +312,121 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           )}
         </Field>
 
-        <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
-          <div className="flex justify-end mb-2">
-            <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
-          </div>
-          <AutoTextarea value={f.description} onChange={(v) => set('description', v)} placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…" />
-          <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
-        </Field>
+        <div ref={dreamFieldRef} data-dream-field>
+          <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
+            {!docked && (
+              <div className="flex justify-end mb-2">
+                <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
+              </div>
+            )}
+            {/* In-flow placeholder keeps layout when the real field is fixed while composing. */}
+            {docked && <div aria-hidden className="min-h-[12rem] rounded-xl" style={{ border: '1px solid transparent' }} />}
+            <AutoTextarea
+              value={f.description}
+              onChange={(v) => set('description', v)}
+              placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…"
+              docked={docked}
+              label={f.entry_type === 'note' ? 'Note' : 'Dream'}
+              words={words}
+              actions={(
+                <>
+                  <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary" disabled={!canSave}>
+                    {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
+                  </button>
+                </>
+              )}
+            />
+            {!docked && (
+              <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
+            )}
+          </Field>
+        </div>
 
         {error && <div className="card text-sm text-danger">{error}</div>}
 
-        <div className="flex justify-end gap-2 pb-6">
-          <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={!canSave}>
-            {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
-          </button>
-        </div>
+        {!docked && (
+          <div className="flex justify-end gap-2 pb-6">
+            <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={!canSave}>
+              {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
+            </button>
+          </div>
+        )}
       </div>
     </form>
   )
 }
 
-function AutoTextarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function AutoTextarea({
+  value,
+  onChange,
+  placeholder,
+  docked,
+  label,
+  words,
+  actions,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  docked?: boolean
+  label?: string
+  words?: number
+  actions?: ReactNode
+}) {
   const ref = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (docked) {
+      el.style.height = ''
+      if (document.activeElement === el) keepTextareaAboveKeyboard(el, { pageScroll: false })
+      return
+    }
     el.style.height = 'auto'
     el.style.height = Math.max(240, el.scrollHeight) + 'px'
     if (document.activeElement === el) keepTextareaAboveKeyboard(el)
-  }, [value])
+  }, [value, docked])
+
   return (
-    <textarea
-      ref={ref}
-      className="input text-base min-h-[240px]"
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
-      onSelect={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
-    />
+    <div
+      className={clsx(docked && 'fixed inset-x-0 z-30 flex flex-col')}
+      style={docked ? {
+        top: 'var(--vv-offset-top, 0px)',
+        height: 'var(--vv-height, 100dvh)',
+        background: 'var(--bg)',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+      } : undefined}
+    >
+      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0 pt-3')}>
+        {docked && label && <span className="label shrink-0">{label}</span>}
+        <textarea
+          ref={ref}
+          className={clsx(
+            'input text-base',
+            docked
+              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none'
+              : 'min-h-[240px]',
+          )}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
+          onSelect={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
+        />
+        {docked && (
+          <div
+            className="shrink-0 flex items-center justify-between gap-2 py-3 border-t mt-2"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <span className="text-xs text-faint tabular-nums">{words ?? 0} words</span>
+            <div className="flex justify-end gap-2">{actions}</div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
