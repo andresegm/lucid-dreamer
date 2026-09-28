@@ -58,12 +58,12 @@ export function DreamDetailPage() {
   const paragraphs = dream.description.split(/\n{2,}/).filter((p) => p.trim())
 
   return (
-    <div className="max-w-3xl fade-in">
-      <div className="flex items-center justify-between gap-2 mb-5">
+    <div className="max-w-3xl min-w-0 fade-in">
+      <div className="flex items-center justify-between gap-2 mb-5 min-w-0">
         <button className="btn btn-ghost -ml-2" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
           <ArrowLeft size={16} /> Back
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <button className={clsx('btn btn-icon', dream.favorite && 'text-lucid')} onClick={toggleFav} aria-label="Toggle favorite">
             <Star size={18} className={dream.favorite ? 'fill-current' : ''} />
           </button>
@@ -77,67 +77,67 @@ export function DreamDetailPage() {
       </div>
 
       <div className="text-sm text-muted">{fmtDate(dream.date, 'EEEE, MMMM d, yyyy')}</div>
-      <h1 className="text-3xl font-semibold tracking-tight mt-1 leading-tight">{dream.title || 'Untitled'}</h1>
+      <h1 className="text-3xl font-semibold tracking-tight mt-1 leading-tight break-words">{dream.title || 'Untitled'}</h1>
 
-      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+      <div className="flex flex-wrap items-center gap-1.5 mt-3 min-w-0">
         {isNote ? (
-          <span className="chip pill-note"><StickyNote size={11} /> Note</span>
+          <span className="chip pill-note max-w-full truncate"><StickyNote size={11} className="shrink-0" /> Note</span>
         ) : (
-          <span className={clsx('chip', lucidityClass(dream.lucidity))}>{lucidityLabel(dream.lucidity)}</span>
+          <span className={clsx('chip max-w-full truncate', lucidityClass(dream.lucidity))}>{lucidityLabel(dream.lucidity)}</span>
         )}
         {dream.induction_method && (
-          <span className="chip" title={INDUCTION_DESCRIPTIONS[dream.induction_method as InductionMethod] ?? ''}>
+          <span className="chip max-w-full truncate" title={INDUCTION_DESCRIPTIONS[dream.induction_method as InductionMethod] ?? ''}>
             {dream.induction_method}
           </span>
         )}
         {dream.tags.map((t) => (
-          <Link key={t.id} to={`/tag/${t.id}`} className="chip chip-btn" style={tagChipStyle(t.color)}>
+          <Link key={t.id} to={`/tag/${t.id}`} className="chip chip-btn max-w-full truncate" style={tagChipStyle(t.color)}>
             {t.name}
           </Link>
         ))}
-        <span className="ml-auto text-xs text-faint">{wordCount(dream.description)} words</span>
+        <span className="text-xs text-faint sm:ml-auto">{wordCount(dream.description)} words</span>
       </div>
 
       {dream.induction_notes && (
-        <div className="card mt-5 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+        <div className="card mt-5 text-sm min-w-0 max-w-full overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
           <div className="label">Induction notes</div>
-          <div className="text-muted leading-relaxed">{dream.induction_notes}</div>
+          <div className="text-muted leading-relaxed break-words">{dream.induction_notes}</div>
         </div>
       )}
 
-      <article className="card mt-5 prose-dream" style={{ padding: 'calc(var(--card-pad) * 1.4)' }}>
+      <article className="card mt-5 prose-dream min-w-0 max-w-full overflow-hidden" style={{ padding: 'calc(var(--card-pad) * 1.4)' }}>
         {paragraphs.length ? paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p className="text-faint italic">No description.</p>}
       </article>
 
       {captured && (
-        <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 fade-in" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
-          <div>
+        <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 fade-in min-w-0" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+          <div className="min-w-0">
             <div className="font-medium">Saved. Add details while it’s fresh?</div>
             <p className="text-sm text-muted mt-0.5">Lucidity, induction method, extra tags — or leave it as-is.</p>
           </div>
-          <Link to={`/dream/${dream.id}/edit`} className="btn btn-primary"><Pencil size={16} /> Add details</Link>
+          <Link to={`/dream/${dream.id}/edit`} className="btn btn-primary shrink-0"><Pencil size={16} /> Add details</Link>
         </div>
       )}
 
       {related.length > 0 && (
-        <section className="mt-8">
+        <section className="mt-8 min-w-0">
           <h2 className="font-semibold mb-1">Related dreams</h2>
           <p className="text-xs text-muted mb-3">Same people, places, or themes.</p>
-          <div className="grid gap-2">
+          <div className="grid gap-2 min-w-0">
             {related.map(({ dream: r, shared }) => (
-              <Link key={r.id} to={`/dream/${r.id}`} className="card card-hover block">
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className="font-medium truncate">{r.title || 'Untitled'}</div>
+              <Link key={r.id} to={`/dream/${r.id}`} className="card card-hover block min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-baseline justify-between gap-3 min-w-0">
+                  <div className="font-medium truncate min-w-0">{r.title || 'Untitled'}</div>
                   <div className="text-xs text-faint shrink-0 tabular-nums">{fmtDate(r.date, 'MMM d, yyyy')}</div>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span className={clsx('chip', lucidityClass(r.lucidity))}>{lucidityLabel(r.lucidity)}</span>
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 min-w-0">
+                  <span className={clsx('chip max-w-full truncate', lucidityClass(r.lucidity))}>{lucidityLabel(r.lucidity)}</span>
                   {shared.slice(0, 4).map((t) => (
-                    <span key={t.id} className="chip chip-active" style={tagChipStyle(t.color)}>{t.name}</span>
+                    <span key={t.id} className="chip chip-active max-w-full truncate" style={tagChipStyle(t.color)}>{t.name}</span>
                   ))}
                   {shared.length > 4 && <span className="chip text-faint">+{shared.length - 4}</span>}
                 </div>
-                {r.description && <p className="text-sm text-muted mt-1.5 line-clamp-2">{excerpt(r.description, 160)}</p>}
+                {r.description && <p className="text-sm text-muted mt-1.5 line-clamp-2 break-words">{excerpt(r.description, 160)}</p>}
               </Link>
             ))}
           </div>
