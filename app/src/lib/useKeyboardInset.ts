@@ -1,37 +1,71 @@
 import { useEffect, useState } from 'react'
 
+type Listener = (inset: number) => void
+
+let subscribers = 0
+const listeners = new Set<Listener>()
+let currentInset = 0
+let removeViewportListeners: (() => void) | null = null
+
+function readKeyboardInset() {
+  const vv = window.visualViewport
+  return vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0
+}
+
+function publish() {
+  const root = document.documentElement
+  const vv = window.visualViewport
+  const keyboard = readKeyboardInset()
+  currentInset = keyboard
+  root.style.setProperty('--keyboard-inset', `${keyboard}px`)
+  root.style.setProperty('--vv-height', `${Math.round(vv?.height ?? window.innerHeight)}px`)
+  root.style.setProperty('--vv-offset-top', `${Math.round(vv?.offsetTop ?? 0)}px`)
+  if (keyboard > 60) root.dataset.keyboardOpen = '1'
+  else delete root.dataset.keyboardOpen
+  for (const listener of listeners) listener(keyboard)
+}
+
+function startViewportTracking() {
+  if (removeViewportListeners) return
+  const vv = window.visualViewport
+  const update = () => publish()
+  update()
+  vv?.addEventListener('resize', update)
+  vv?.addEventListener('scroll', update)
+  window.addEventListener('resize', update)
+  removeViewportListeners = () => {
+    vv?.removeEventListener('resize', update)
+    vv?.removeEventListener('scroll', update)
+    window.removeEventListener('resize', update)
+    removeViewportListeners = null
+  }
+}
+
+function stopViewportTracking() {
+  removeViewportListeners?.()
+  const root = document.documentElement
+  root.style.removeProperty('--keyboard-inset')
+  root.style.removeProperty('--vv-height')
+  root.style.removeProperty('--vv-offset-top')
+  delete root.dataset.keyboardOpen
+  currentInset = 0
+}
+
 /** Tracks the on-screen keyboard via visualViewport and exposes it as CSS --keyboard-inset. */
 export function useKeyboardInset() {
-  const [inset, setInset] = useState(0)
+  const [inset, setInset] = useState(currentInset)
 
   useEffect(() => {
-    const root = document.documentElement
-    const vv = window.visualViewport
+    const listener: Listener = (next) => setInset(next)
+    listeners.add(listener)
+    subscribers += 1
+    if (subscribers === 1) startViewportTracking()
+    else setInset(currentInset)
 
-    const update = () => {
-      const keyboard = vv
-        ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
-        : 0
-      setInset(keyboard)
-      root.style.setProperty('--keyboard-inset', `${keyboard}px`)
-      root.style.setProperty('--vv-height', `${Math.round(vv?.height ?? window.innerHeight)}px`)
-      root.style.setProperty('--vv-offset-top', `${Math.round(vv?.offsetTop ?? 0)}px`)
-      if (keyboard > 60) root.dataset.keyboardOpen = '1'
-      else delete root.dataset.keyboardOpen
-    }
-
-    update()
-    vv?.addEventListener('resize', update)
-    vv?.addEventListener('scroll', update)
-    window.addEventListener('resize', update)
     return () => {
-      vv?.removeEventListener('resize', update)
-      vv?.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-      root.style.removeProperty('--keyboard-inset')
-      root.style.removeProperty('--vv-height')
-      root.style.removeProperty('--vv-offset-top')
-      delete root.dataset.keyboardOpen
+      listeners.delete(listener)
+      subscribers -= 1
+      if (subscribers === 0) stopViewportTracking()
     }
   }, [])
 

@@ -96,7 +96,7 @@ export function CapturePage() {
   function toFullForm() {
     const draft = {
       date,
-      title: '',
+      title: titleFromDump(text),
       description: text,
       lucidity: 'non-lucid',
       induction_method: '',
@@ -163,11 +163,11 @@ export function CapturePage() {
         <span className="ml-auto text-xs text-faint tabular-nums">{words} words · ⌘ Enter to save</span>
       </div>
 
-      {!composing && (
-        <div className="flex justify-end mb-2 shrink-0">
-          <VoiceRecord onTranscript={(t) => setText((prev) => appendTranscript(prev, t))} />
-        </div>
-      )}
+      {/* Keep voice reachable while composing — short form auto-focuses the
+          textarea, so gating on !composing hid Record for the whole session. */}
+      <div className="flex justify-end mb-2 shrink-0">
+        <VoiceRecord onTranscript={(t) => setText((prev) => appendTranscript(prev, t))} />
+      </div>
 
       <textarea
         ref={ta}
