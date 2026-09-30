@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type UIEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Maximize2, Sparkles } from 'lucide-react'
+import { ArrowLeft, Maximize2, Sparkles } from 'lucide-react'
 import { createDream, ensureTags, fetchTags } from '@/lib/api'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
@@ -8,20 +8,16 @@ import { EMOTIONS, isEmotion } from '@/lib/emotions'
 import { appendTranscript } from '@/lib/voice'
 import type { Tag } from '@/lib/types'
 import { EmotionChips } from '@/components/EmotionChips'
-import { VoiceRecord } from '@/components/VoiceRecord'
-import { Spinner } from '@/components/ui'
+import { ComposeBar, COMPOSE_BAR_RESERVE } from '@/components/ComposeBar'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { useKeyboardInset } from '@/lib/useKeyboardInset'
-
-const TEXTAREA_MAX_PX = 220
+import { useDismissKeyboardOnAway } from '@/lib/useKeyboardInset'
 
 export function CapturePage() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const uid = session!.user.id
   const captureDraft = draftKey(uid, 'capture')
-  const keyboardInset = useKeyboardInset()
   const [date, setDate] = useState(todayISO)
   const [text, setText] = useState(() => {
     try { return localStorage.getItem(draftKey(uid, 'capture')) ?? localStorage.getItem('ldj.draft.capture') ?? '' } catch { return '' }
@@ -30,10 +26,8 @@ export function CapturePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>({})
-  const [focused, setFocused] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
-  // Ignore scroll-dismiss briefly after focus so iOS keyboard open can't race-blur.
-  const allowScrollDismiss = useRef(false)
+  const { keyboardOpen, arm, disarm, sheetProps } = useDismissKeyboardOnAway(ta)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
   useEffect(() => { ta.current?.focus() }, [])
@@ -41,16 +35,6 @@ export function CapturePage() {
     if (text.trim()) localStorage.setItem(captureDraft, text)
     else localStorage.removeItem(captureDraft)
   }, [text, captureDraft])
-
-  // Auto-grow the composer field up to a cap; overflow scrolls inside.
-  useEffect(() => {
-    const el = ta.current
-    if (!el) return
-    el.style.height = 'auto'
-    const next = Math.min(Math.max(el.scrollHeight, 44), TEXTAREA_MAX_PX)
-    el.style.height = `${next}px`
-    el.style.overflowY = el.scrollHeight > TEXTAREA_MAX_PX ? 'auto' : 'hidden'
-  }, [text, focused])
 
   const words = useMemo(() => wordCount(text), [text])
   const matches = useMemo(
@@ -79,7 +63,6 @@ export function CapturePage() {
     })
   }, [matches, activeEmotions])
   const canSave = text.trim().length > 0 && !saving
-  const keyboardOpen = keyboardInset > 60
 
   async function save() {
     if (!canSave) return
@@ -132,23 +115,12 @@ export function CapturePage() {
     }
   }
 
-  function dismissKeyboard() {
-    if (document.activeElement === ta.current) ta.current?.blur()
-  }
-
-  // Scroll the sheet above the composer → close keyboard (chat-app pattern).
-  function onSheetScroll(_e: UIEvent<HTMLDivElement>) {
-    if (!keyboardOpen || !allowScrollDismiss.current) return
-    dismissKeyboard()
-  }
-
   return (
     <div
       className="max-w-3xl fade-in flex flex-col"
       style={{
         minHeight: 'calc(100svh - env(safe-area-inset-top, 0px) - 4.5rem)',
-        // Reserve room for the fixed composer (+ home indicator when keyboard closed).
-        paddingBottom: 'calc(7.5rem + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: COMPOSE_BAR_RESERVE,
       }}
     >
       <div className="flex items-center justify-between gap-2 mb-4 shrink-0">
@@ -162,7 +134,7 @@ export function CapturePage() {
 
       <div
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-        onScroll={onSheetScroll}
+        {...sheetProps}
       >
         <h1 className="text-2xl font-semibold tracking-tight">Write it down</h1>
         <p className="text-sm text-muted mt-1 mb-4">Don’t organize. Just dump everything you remember — tags and lucidity can wait.</p>
@@ -198,78 +170,34 @@ export function CapturePage() {
         {error && <div className="card text-sm text-danger mb-3">{error}</div>}
 
         {keyboardOpen && (
-          <p className="text-xs text-faint pb-6">Scroll up to close the keyboard and edit tags.</p>
+          <p className="text-xs text-faint pb-8">Scroll or drag this area to close the keyboard and edit tags.</p>
         )}
       </div>
 
-      {/* Chat-style composer: fixed above keyboard / home indicator. */}
-      <div
-        className="fixed inset-x-0 z-20"
-        style={{
-          bottom: 'max(var(--keyboard-inset, 0px), env(safe-area-inset-bottom, 0px))',
-          paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
-          paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
-          paddingBottom: keyboardOpen ? '0.5rem' : '0.65rem',
-          paddingTop: '0.35rem',
-          background: 'linear-gradient(to top, var(--bg) 70%, transparent)',
-        }}
-      >
-        <div className="max-w-3xl mx-auto flex items-end gap-2">
-          <div
-            className="flex-1 min-w-0 rounded-[1.35rem] px-3 pt-2.5 pb-2"
-            style={{ background: 'var(--bg-elev-2)', border: '1px solid var(--border)' }}
-          >
-            <textarea
-              ref={ta}
-              rows={1}
-              className="w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed px-0.5 py-0.5"
-              style={{ minHeight: '1.5rem', maxHeight: TEXTAREA_MAX_PX, boxShadow: 'none' }}
-              placeholder="I was in…"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={onKey}
-              onFocus={() => {
-                setFocused(true)
-                allowScrollDismiss.current = false
-                window.setTimeout(() => { allowScrollDismiss.current = true }, 450)
-              }}
-              onBlur={() => {
-                setFocused(false)
-                allowScrollDismiss.current = false
-              }}
-            />
-            <div className="flex items-center justify-between gap-2 mt-1">
-              <button
-                type="button"
-                className="h-10 w-10 rounded-full flex items-center justify-center text-muted hover:text-fg hover:bg-elev2"
-                onClick={toFullForm}
-                aria-label="Open full form"
-                title="Full form"
-              >
-                <Maximize2 size={18} />
-              </button>
-              <div className="flex items-center gap-0.5">
-                <VoiceRecord
-                  variant="icon"
-                  onTranscript={(t) => setText((prev) => appendTranscript(prev, t))}
-                />
-              </div>
-            </div>
-          </div>
-
+      <ComposeBar
+        value={text}
+        onChange={setText}
+        onSave={() => void save()}
+        canSave={canSave}
+        saving={saving}
+        placeholder="I was in…"
+        onTranscript={(t) => setText((prev) => appendTranscript(prev, t))}
+        textareaRef={ta}
+        onFocus={arm}
+        onBlur={disarm}
+        onKeyDown={onKey}
+        leftAction={(
           <button
             type="button"
-            className="shrink-0 h-11 w-11 mb-0.5 rounded-full flex items-center justify-center disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
-            disabled={!canSave}
-            onClick={() => void save()}
-            aria-label={saving ? 'Saving' : 'Save dream'}
-            title="Save"
+            className="h-10 w-10 rounded-full flex items-center justify-center text-muted hover:text-fg hover:bg-elev2"
+            onClick={toFullForm}
+            aria-label="Open full form"
+            title="Full form"
           >
-            {saving ? <Spinner className="h-4 w-4" /> : <Check size={22} strokeWidth={2.5} />}
+            <Maximize2 size={18} />
           </button>
-        </div>
-      </div>
+        )}
+      />
     </div>
   )
 }

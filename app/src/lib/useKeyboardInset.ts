@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject, type TouchEvent as ReactTouchEvent, type UIEvent, type PointerEvent as ReactPointerEvent } from 'react'
 
 type Listener = (inset: number) => void
 
@@ -75,6 +75,84 @@ export function useKeyboardInset() {
 type KeepOpts = {
   /** When false, only scroll inside the textarea — never nudge the page. */
   pageScroll?: boolean
+}
+
+/**
+ * Dismiss the keyboard when the user scrolls or drags the sheet above a
+ * fixed composer. Touch-drag covers the common case where the sheet has no
+ * overflow yet, so `scroll` never fires. A short post-focus grace period
+ * avoids racing the iOS keyboard open animation.
+ */
+export function useDismissKeyboardOnAway(textareaRef: RefObject<HTMLTextAreaElement | null>) {
+  const keyboardInset = useKeyboardInset()
+  const keyboardOpen = keyboardInset > 60
+  const allow = useRef(false)
+  const touchStartY = useRef<number | null>(null)
+  const focused = useRef(false)
+
+  function arm() {
+    focused.current = true
+    allow.current = false
+    window.setTimeout(() => { allow.current = true }, 450)
+  }
+
+  function disarm() {
+    focused.current = false
+    allow.current = false
+    touchStartY.current = null
+  }
+
+  function dismiss() {
+    if (!allow.current || !focused.current) return
+    if (document.activeElement === textareaRef.current) textareaRef.current?.blur()
+  }
+
+  function onScroll(_e?: UIEvent<HTMLElement>) {
+    if (!keyboardOpen && document.activeElement !== textareaRef.current) return
+    dismiss()
+  }
+
+  function onTouchStart(e: ReactTouchEvent<HTMLElement>) {
+    touchStartY.current = e.touches[0]?.clientY ?? null
+  }
+
+  function onTouchMove(e: ReactTouchEvent<HTMLElement>) {
+    if (!keyboardOpen || !allow.current || !focused.current) return
+    const y = e.touches[0]?.clientY
+    if (touchStartY.current == null || y == null) return
+    if (Math.abs(y - touchStartY.current) > 14) {
+      dismiss()
+      touchStartY.current = null
+    }
+  }
+
+  function onTouchEnd() {
+    touchStartY.current = null
+  }
+
+  /** Tap empty sheet chrome (not buttons/inputs) to dismiss. */
+  function onPointerDown(e: ReactPointerEvent<HTMLElement>) {
+    if (!keyboardOpen || !allow.current || !focused.current) return
+    const t = e.target as HTMLElement | null
+    if (!t) return
+    if (t.closest('button, a, input, textarea, select, label, [role="button"]')) return
+    dismiss()
+  }
+
+  return {
+    keyboardOpen,
+    arm,
+    disarm,
+    dismiss,
+    sheetProps: {
+      onScroll,
+      onTouchStart,
+      onTouchMove,
+      onTouchEnd,
+      onTouchCancel: onTouchEnd,
+      onPointerDown,
+    },
+  }
 }
 
 /** Keep the caret / bottom of a focused textarea above the keyboard. */

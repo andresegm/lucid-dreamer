@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
@@ -10,11 +10,12 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard, useKeyboardInset } from '@/lib/useKeyboardInset'
+import { keepTextareaAboveKeyboard, useDismissKeyboardOnAway } from '@/lib/useKeyboardInset'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
 import { VoiceRecord } from '@/components/VoiceRecord'
+import { ComposeBar, COMPOSE_BAR_RESERVE } from '@/components/ComposeBar'
 
 interface FormState {
   date: string
@@ -44,17 +45,10 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [loading, setLoading] = useState(mode === 'edit')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dreamCompose, setDreamCompose] = useState(false)
   const [mobileUi, setMobileUi] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
-  const dreamFieldRef = useRef<HTMLDivElement>(null)
-  const keyboardInset = useKeyboardInset()
-  // Keep Cancel/Save glued above the keyboard while writing the dream body.
-  // Only dock once the keyboard is actually open — otherwise the fixed overlay
-  // sticks after ✓ dismiss and covers the header Save (visible but untappable).
-  // Moving focus to tags/title (keyboard ↑) or collapsing the inset releases it.
-  // Desktop keeps the normal in-flow auto-growing textarea.
-  const docked = dreamCompose && mobileUi && keyboardInset > 60
+  const dreamTa = useRef<HTMLTextAreaElement>(null)
+  const { keyboardOpen, arm, disarm, sheetProps } = useDismissKeyboardOnAway(dreamTa)
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -103,59 +97,16 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     else localStorage.removeItem(newDraft)
   }, [f, mode, newDraft])
 
-  useEffect(() => { if (!loading) titleRef.current?.focus() }, [loading])
-
+  // Desktop: focus title. Mobile: leave focus alone so the bottom composer isn't fought.
   useEffect(() => {
-    // Only clear the compose flag once the keyboard is gone and focus has left
-    // the dream field. Docked chrome itself already requires keyboardInset > 60,
-    // so ✓ dismiss releases the overlay even while the textarea stays focused.
-    if (keyboardInset < 60 && !dreamFieldRef.current?.contains(document.activeElement)) {
-      setDreamCompose(false)
-    }
-  }, [keyboardInset])
-
-  useEffect(() => {
-    if (!docked) return
-    // Freeze page scroll while the dream field owns the keyboard. Allow touch
-    // scrolling only inside the compose textarea — elsewhere, block so iOS
-    // doesn't rubber-band the page under the docked chrome (jitter).
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const blockPageScroll = (e: TouchEvent) => {
-      const t = e.target as HTMLElement | null
-      if (t?.closest('[data-compose-scroll]')) return
-      e.preventDefault()
-    }
-    document.addEventListener('touchmove', blockPageScroll, { passive: false })
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('touchmove', blockPageScroll)
-    }
-  }, [docked])
+    if (loading || mobileUi) return
+    titleRef.current?.focus()
+  }, [loading, mobileUi])
 
   // Lucid implies an induction method is relevant; non-lucid clears it
   useEffect(() => {
     if (f.lucidity === 'non-lucid' && f.induction_method) set('induction_method', '')
   }, [f.lucidity]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function onFormFocusIn(e: FocusEvent<HTMLFormElement>) {
-    const t = e.target as HTMLElement
-    if (t.closest('[data-dream-field]')) {
-      setDreamCompose(true)
-      return
-    }
-    // Keyboard ↑ into tags/title/date undocks the composer chrome.
-    if (t.matches('input, textarea, select')) setDreamCompose(false)
-  }
-
-  function onFormFocusOut(e: FocusEvent<HTMLFormElement>) {
-    const next = e.relatedTarget as Node | null
-    // Blur leaving the dream field (or the form) must clear compose even when
-    // keyboardInset already collapsed — otherwise the z-30 overlay can linger.
-    if (!dreamFieldRef.current?.contains(e.target as Node)) return
-    if (next && dreamFieldRef.current.contains(next)) return
-    setDreamCompose(false)
-  }
 
   // Auto-tagging: scan title + description (debounced) for existing tags and keyword rules.
   useEffect(() => {
@@ -222,8 +173,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     )
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  async function submit(e?: FormEvent) {
+    e?.preventDefault()
     if (needsTitle) {
       focusTitle()
       return
@@ -255,13 +206,24 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     }
   }
 
+  function onDreamKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      void submit()
+    }
+  }
+
   if (loading)
     return (
       <div className="flex items-center gap-2 text-muted"><Spinner /> Loading…</div>
     )
 
   return (
-    <form onSubmit={submit} onFocusCapture={onFormFocusIn} onBlurCapture={onFormFocusOut} className="max-w-3xl fade-in">
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="max-w-3xl fade-in"
+      style={mobileUi ? { paddingBottom: COMPOSE_BAR_RESERVE } : undefined}
+    >
       <div className="flex items-center justify-between gap-2 mb-5">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> {mode === 'new' ? 'Cancel' : 'Back'}
@@ -282,7 +244,10 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
       <h1 className="text-2xl font-semibold tracking-tight mb-5">{mode === 'new' ? 'New dream' : 'Edit dream'}</h1>
 
-      <div className="grid gap-5">
+      <div
+        className={clsx('grid gap-5', mobileUi && 'overflow-y-auto overscroll-contain')}
+        {...(mobileUi ? sheetProps : {})}
+      >
         <div className="grid sm:grid-cols-[180px_1fr] gap-4">
           <Field label="Date">
             <input type="date" className="input" value={f.date} max={todayISO()} onChange={(e) => set('date', e.target.value)} required />
@@ -384,38 +349,39 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           )}
         </Field>
 
-        <div ref={dreamFieldRef} data-dream-field>
+        {/* Desktop: classic in-flow dream field. Mobile: bottom ComposeBar. */}
+        {!mobileUi && (
           <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
-            {!docked && (
-              <div className="flex justify-end mb-2">
-                <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
-              </div>
-            )}
-            {/* In-flow placeholder keeps layout when the real field is fixed while composing. */}
-            {docked && <div aria-hidden className="min-h-[12rem] rounded-xl" style={{ border: '1px solid transparent' }} />}
-            <AutoTextarea
+            <div className="flex justify-end mb-2">
+              <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
+            </div>
+            <DesktopDreamTextarea
               value={f.description}
               onChange={(v) => set('description', v)}
               placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…"
-              docked={docked}
-              label={f.entry_type === 'note' ? 'Note' : 'Dream'}
-              words={words}
-              actions={(
-                <>
-                  <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
-                  {renderSaveButton()}
-                </>
-              )}
             />
-            {!docked && (
-              <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
-            )}
+            <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
           </Field>
-        </div>
+        )}
+
+        {mobileUi && (
+          <div className="text-sm text-muted">
+            <span className="label">{f.entry_type === 'note' ? 'Note' : 'Dream'}</span>
+            <p className="mt-1">
+              {f.description.trim()
+                ? <span className="text-fg line-clamp-3 whitespace-pre-wrap">{f.description}</span>
+                : 'Write in the composer below — mic and Save stay above the keyboard.'}
+            </p>
+            <p className="text-xs text-faint mt-1 tabular-nums">{words} words</p>
+            {keyboardOpen && (
+              <p className="text-xs text-faint mt-2">Scroll or drag this area to close the keyboard.</p>
+            )}
+          </div>
+        )}
 
         {error && <div className="card text-sm text-danger">{error}</div>}
 
-        {!docked && (
+        {!mobileUi && (
           <div className="flex flex-col items-end gap-1.5 pb-6">
             {needsTitle && (
               <p className="text-xs text-muted">A title is required to save.</p>
@@ -427,99 +393,54 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           </div>
         )}
       </div>
+
+      {mobileUi && (
+        <ComposeBar
+          value={f.description}
+          onChange={(v) => set('description', v)}
+          onSave={() => void submit()}
+          canSave={canSave}
+          saving={saving}
+          saveLabel={saveLabel}
+          placeholder={f.entry_type === 'note' ? 'Write your note…' : 'Write everything you remember…'}
+          onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))}
+          textareaRef={dreamTa}
+          onFocus={arm}
+          onBlur={disarm}
+          onKeyDown={onDreamKey}
+        />
+      )}
     </form>
   )
 }
 
-function AutoTextarea({
+function DesktopDreamTextarea({
   value,
   onChange,
   placeholder,
-  docked,
-  label,
-  words,
-  actions,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
-  docked?: boolean
-  label?: string
-  words?: number
-  actions?: ReactNode
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    if (docked) {
-      el.style.height = ''
-      // Keep caret visible inside the field only — never nudge the page.
-      if (document.activeElement === el && el.selectionStart === el.value.length) {
-        el.scrollTop = el.scrollHeight
-      }
-      return
-    }
     el.style.height = 'auto'
     el.style.height = Math.max(240, el.scrollHeight) + 'px'
     if (document.activeElement === el) keepTextareaAboveKeyboard(el)
-  }, [value, docked])
-
-  function dismissKeyboard() {
-    ref.current?.blur()
-  }
+  }, [value])
 
   return (
-    <div
-      className={clsx(docked && 'fixed inset-x-0 z-30 flex flex-col')}
-      style={docked ? {
-        // Stable pin (not visualViewport.offsetTop) — chasing offsetTop makes
-        // the whole composer jump when iOS tries to scroll under the keyboard.
-        top: 0,
-        bottom: 'var(--keyboard-inset, 0px)',
-        background: 'var(--bg)',
-        paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
-        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
-        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
-      } : undefined}
-    >
-      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0')}>
-        {docked && (
-          <div className="shrink-0 flex items-center justify-between gap-2 mb-1.5">
-            {label && <span className="label mb-0">{label}</span>}
-            <button type="button" className="text-sm text-accent font-medium py-1 px-1" onClick={dismissKeyboard}>
-              Done
-            </button>
-          </div>
-        )}
-        <textarea
-          ref={ref}
-          data-compose-scroll={docked ? '' : undefined}
-          className={clsx(
-            'input text-base',
-            docked
-              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none overscroll-contain'
-              : 'min-h-[240px]',
-          )}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => { if (ref.current && !docked) keepTextareaAboveKeyboard(ref.current) }}
-        />
-        {docked && (
-          <div
-            className="shrink-0 flex items-center justify-between gap-2 pt-3 border-t mt-2"
-            style={{
-              borderColor: 'var(--border)',
-              paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
-            }}
-          >
-            <span className="text-xs text-faint tabular-nums">{words ?? 0} words</span>
-            <div className="flex justify-end gap-2">{actions}</div>
-          </div>
-        )}
-      </div>
-    </div>
+    <textarea
+      ref={ref}
+      className="input text-base min-h-[240px]"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
+    />
   )
 }
