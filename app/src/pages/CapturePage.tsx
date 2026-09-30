@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type UIEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, Maximize2, Sparkles } from 'lucide-react'
 import { createDream, ensureTags, fetchTags } from '@/lib/api'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
@@ -12,7 +12,9 @@ import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard, useKeyboardInset } from '@/lib/useKeyboardInset'
+import { useKeyboardInset } from '@/lib/useKeyboardInset'
+
+const TEXTAREA_MAX_PX = 220
 
 export function CapturePage() {
   const navigate = useNavigate()
@@ -30,6 +32,8 @@ export function CapturePage() {
   const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>({})
   const [focused, setFocused] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
+  // Ignore scroll-dismiss briefly after focus so iOS keyboard open can't race-blur.
+  const allowScrollDismiss = useRef(false)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
   useEffect(() => { ta.current?.focus() }, [])
@@ -37,6 +41,16 @@ export function CapturePage() {
     if (text.trim()) localStorage.setItem(captureDraft, text)
     else localStorage.removeItem(captureDraft)
   }, [text, captureDraft])
+
+  // Auto-grow the composer field up to a cap; overflow scrolls inside.
+  useEffect(() => {
+    const el = ta.current
+    if (!el) return
+    el.style.height = 'auto'
+    const next = Math.min(Math.max(el.scrollHeight, 44), TEXTAREA_MAX_PX)
+    el.style.height = `${next}px`
+    el.style.overflowY = el.scrollHeight > TEXTAREA_MAX_PX ? 'auto' : 'hidden'
+  }, [text, focused])
 
   const words = useMemo(() => wordCount(text), [text])
   const matches = useMemo(
@@ -65,7 +79,7 @@ export function CapturePage() {
     })
   }, [matches, activeEmotions])
   const canSave = text.trim().length > 0 && !saving
-  const composing = focused || keyboardInset > 60
+  const keyboardOpen = keyboardInset > 60
 
   async function save() {
     if (!canSave) return
@@ -118,133 +132,144 @@ export function CapturePage() {
     }
   }
 
-  function onTextChange(value: string) {
-    setText(value)
-    const el = ta.current
-    if (el) keepTextareaAboveKeyboard(el, { pageScroll: !composing })
+  function dismissKeyboard() {
+    if (document.activeElement === ta.current) ta.current?.blur()
   }
 
-  function renderSaveButton() {
-    return (
-      <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void save()}>
-        {saving ? <Spinner /> : <Check size={16} />} Save
-      </button>
-    )
+  // Scroll the sheet above the composer → close keyboard (chat-app pattern).
+  function onSheetScroll(_e: UIEvent<HTMLDivElement>) {
+    if (!keyboardOpen || !allowScrollDismiss.current) return
+    dismissKeyboard()
   }
 
   return (
     <div
       className="max-w-3xl fade-in flex flex-col"
       style={{
-        // Subtract top safe-area too: standalone PWA has a large inset under the
-        // status bar, and the old 100dvh math pushed the in-flow Save below the fold.
-        minHeight: composing
-          ? 'calc(100svh - var(--keyboard-inset, 0px) - env(safe-area-inset-top, 0px) - 5.5rem)'
-          : '70vh',
-        paddingBottom: composing ? '4.25rem' : undefined,
+        minHeight: 'calc(100svh - env(safe-area-inset-top, 0px) - 4.5rem)',
+        // Reserve room for the fixed composer (+ home indicator when keyboard closed).
+        paddingBottom: 'calc(7.5rem + env(safe-area-inset-bottom, 0px))',
       }}
     >
       <div className="flex items-center justify-between gap-2 mb-4 shrink-0">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> Back
         </button>
-        <div className="flex items-center gap-2">
-          <button type="button" className="btn btn-ghost text-sm" onClick={toFullForm}>
-            Full form
-          </button>
-          {renderSaveButton()}
-        </div>
+        <button type="button" className="btn btn-ghost text-sm" onClick={toFullForm}>
+          Full form
+        </button>
       </div>
 
-      {!composing && (
-        <>
-          <h1 className="text-2xl font-semibold tracking-tight shrink-0">Write it down</h1>
-          <p className="text-sm text-muted mt-1 mb-4 shrink-0">Don’t organize. Just dump everything you remember — tags and lucidity can wait.</p>
-        </>
-      )}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        onScroll={onSheetScroll}
+      >
+        <h1 className="text-2xl font-semibold tracking-tight">Write it down</h1>
+        <p className="text-sm text-muted mt-1 mb-4">Don’t organize. Just dump everything you remember — tags and lucidity can wait.</p>
 
-      <div className="flex flex-wrap items-center gap-3 mb-3 shrink-0">
-        <label className="flex items-center gap-2 text-sm text-muted">
-          Date
-          <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        {date !== todayISO() && (
-          <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
-        )}
-        <span className="ml-auto text-xs text-faint tabular-nums">{words} words · ⌘ Enter to save</span>
-      </div>
-
-      {/* Keep voice reachable while composing — short form auto-focuses the
-          textarea, so gating on !composing hid Record for the whole session. */}
-      <div className="flex justify-end mb-2 shrink-0">
-        <VoiceRecord onTranscript={(t) => setText((prev) => appendTranscript(prev, t))} />
-      </div>
-
-      <textarea
-        ref={ta}
-        className="input text-base flex-1 min-h-[12rem] leading-relaxed overflow-y-auto"
-        placeholder="I was in…"
-        value={text}
-        onChange={(e) => onTextChange(e.target.value)}
-        onKeyDown={onKey}
-        onFocus={() => {
-          setFocused(true)
-          if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: false })
-        }}
-        onBlur={() => setFocused(false)}
-        onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: !composing }) }}
-      />
-
-      {!composing && (
-        <>
-          <div
-            className="shrink-0 flex items-center justify-between gap-2 mt-3 pt-3"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            <span className="text-xs text-faint tabular-nums">{words} words</span>
-            {renderSaveButton()}
-          </div>
-
-          <div className="mt-3 shrink-0">
-            <EmotionChips
-              selected={activeEmotions.map((e) => e.name)}
-              onToggle={(name) => setEmotionOn((o) => ({ ...o, [name]: !activeEmotions.some((e) => e.name === name) }))}
-            />
-          </div>
-
-          {saveNames.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-xs text-muted fade-in shrink-0">
-              <Sparkles size={12} className="text-accent shrink-0" />
-              <span>Will tag:</span>
-              {saveNames.map((name) => (
-                <span key={name} className="chip chip-active">{name}</span>
-              ))}
-            </div>
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <label className="flex items-center gap-2 text-sm text-muted">
+            Date
+            <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          {date !== todayISO() && (
+            <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
           )}
-        </>
-      )}
-
-      {error && <div className="card text-sm text-danger mt-3 shrink-0">{error}</div>}
-
-      {/* Fixed while composing so standalone PWA safe-area / status-bar padding
-          can’t push Save under the keyboard or off-screen. */}
-      {composing && (
-        <div
-          className="fixed inset-x-0 z-20 flex items-center justify-between gap-2 border-t"
-          style={{
-            bottom: 'max(var(--keyboard-inset, 0px), env(safe-area-inset-bottom, 0px))',
-            background: 'var(--bg)',
-            borderColor: 'var(--border)',
-            paddingTop: '0.75rem',
-            paddingBottom: '0.75rem',
-            paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
-            paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
-          }}
-        >
-          <span className="text-xs text-faint tabular-nums">{words} words</span>
-          {renderSaveButton()}
+          <span className="ml-auto text-xs text-faint tabular-nums">{words} words</span>
         </div>
-      )}
+
+        <div className="mb-3">
+          <EmotionChips
+            selected={activeEmotions.map((e) => e.name)}
+            onToggle={(name) => setEmotionOn((o) => ({ ...o, [name]: !activeEmotions.some((e) => e.name === name) }))}
+          />
+        </div>
+
+        {saveNames.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3 text-xs text-muted fade-in">
+            <Sparkles size={12} className="text-accent shrink-0" />
+            <span>Will tag:</span>
+            {saveNames.map((name) => (
+              <span key={name} className="chip chip-active">{name}</span>
+            ))}
+          </div>
+        )}
+
+        {error && <div className="card text-sm text-danger mb-3">{error}</div>}
+
+        {keyboardOpen && (
+          <p className="text-xs text-faint pb-6">Scroll up to close the keyboard and edit tags.</p>
+        )}
+      </div>
+
+      {/* Chat-style composer: fixed above keyboard / home indicator. */}
+      <div
+        className="fixed inset-x-0 z-20"
+        style={{
+          bottom: 'max(var(--keyboard-inset, 0px), env(safe-area-inset-bottom, 0px))',
+          paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+          paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+          paddingBottom: keyboardOpen ? '0.5rem' : '0.65rem',
+          paddingTop: '0.35rem',
+          background: 'linear-gradient(to top, var(--bg) 70%, transparent)',
+        }}
+      >
+        <div className="max-w-3xl mx-auto flex items-end gap-2">
+          <div
+            className="flex-1 min-w-0 rounded-[1.35rem] px-3 pt-2.5 pb-2"
+            style={{ background: 'var(--bg-elev-2)', border: '1px solid var(--border)' }}
+          >
+            <textarea
+              ref={ta}
+              rows={1}
+              className="w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed px-0.5 py-0.5"
+              style={{ minHeight: '1.5rem', maxHeight: TEXTAREA_MAX_PX, boxShadow: 'none' }}
+              placeholder="I was in…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={onKey}
+              onFocus={() => {
+                setFocused(true)
+                allowScrollDismiss.current = false
+                window.setTimeout(() => { allowScrollDismiss.current = true }, 450)
+              }}
+              onBlur={() => {
+                setFocused(false)
+                allowScrollDismiss.current = false
+              }}
+            />
+            <div className="flex items-center justify-between gap-2 mt-1">
+              <button
+                type="button"
+                className="h-10 w-10 rounded-full flex items-center justify-center text-muted hover:text-fg hover:bg-elev2"
+                onClick={toFullForm}
+                aria-label="Open full form"
+                title="Full form"
+              >
+                <Maximize2 size={18} />
+              </button>
+              <div className="flex items-center gap-0.5">
+                <VoiceRecord
+                  variant="icon"
+                  onTranscript={(t) => setText((prev) => appendTranscript(prev, t))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="shrink-0 h-11 w-11 mb-0.5 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+            disabled={!canSave}
+            onClick={() => void save()}
+            aria-label={saving ? 'Saving' : 'Save dream'}
+            title="Save"
+          >
+            {saving ? <Spinner className="h-4 w-4" /> : <Check size={22} strokeWidth={2.5} />}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
