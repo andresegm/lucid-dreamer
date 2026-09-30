@@ -50,10 +50,11 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const dreamFieldRef = useRef<HTMLDivElement>(null)
   const keyboardInset = useKeyboardInset()
   // Keep Cancel/Save glued above the keyboard while writing the dream body.
-  // Moving focus to tags/title (keyboard ↑) releases the dock; dismissing the
-  // keyboard (✓) also releases once the inset collapses.
+  // Only dock once the keyboard is actually open — otherwise the fixed overlay
+  // sticks after ✓ dismiss and covers the header Save (visible but untappable).
+  // Moving focus to tags/title (keyboard ↑) or collapsing the inset releases it.
   // Desktop keeps the normal in-flow auto-growing textarea.
-  const docked = dreamCompose && mobileUi
+  const docked = dreamCompose && mobileUi && keyboardInset > 60
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -105,6 +106,9 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   useEffect(() => { if (!loading) titleRef.current?.focus() }, [loading])
 
   useEffect(() => {
+    // Only clear the compose flag once the keyboard is gone and focus has left
+    // the dream field. Docked chrome itself already requires keyboardInset > 60,
+    // so ✓ dismiss releases the overlay even while the textarea stays focused.
     if (keyboardInset < 60 && !dreamFieldRef.current?.contains(document.activeElement)) {
       setDreamCompose(false)
     }
@@ -130,6 +134,15 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     }
     // Keyboard ↑ into tags/title/date undocks the composer chrome.
     if (t.matches('input, textarea, select')) setDreamCompose(false)
+  }
+
+  function onFormFocusOut(e: FocusEvent<HTMLFormElement>) {
+    const next = e.relatedTarget as Node | null
+    // Blur leaving the dream field (or the form) must clear compose even when
+    // keyboardInset already collapsed — otherwise the z-30 overlay can linger.
+    if (!dreamFieldRef.current?.contains(e.target as Node)) return
+    if (next && dreamFieldRef.current.contains(next)) return
+    setDreamCompose(false)
   }
 
   // Auto-tagging: scan title + description (debounced) for existing tags and keyword rules.
@@ -166,10 +179,43 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   }
 
   const words = useMemo(() => wordCount(f.description), [f.description])
-  const canSave = f.title.trim().length > 0 && !!f.date && !saving
+  const needsTitle = f.title.trim().length === 0
+  const canSave = !needsTitle && !!f.date && !saving
+  const saveLabel = needsTitle ? 'Add a title' : mode === 'new' ? 'Save dream' : 'Save changes'
+
+  function focusTitle() {
+    const el = titleRef.current
+    if (!el) return
+    el.focus()
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+
+  function renderSaveButton() {
+    if (needsTitle) {
+      return (
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={focusTitle}
+          aria-describedby="save-needs-title"
+        >
+          <Check size={16} /> {saveLabel}
+        </button>
+      )
+    }
+    return (
+      <button type="submit" className="btn btn-primary" disabled={!canSave}>
+        {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
+      </button>
+    )
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (needsTitle) {
+      focusTitle()
+      return
+    }
     if (!canSave) return
     setSaving(true)
     setError(null)
@@ -203,7 +249,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     )
 
   return (
-    <form onSubmit={submit} onFocusCapture={onFormFocusIn} className="max-w-3xl fade-in">
+    <form onSubmit={submit} onFocusCapture={onFormFocusIn} onBlurCapture={onFormFocusOut} className="max-w-3xl fade-in">
       <div className="flex items-center justify-between gap-2 mb-5">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> {mode === 'new' ? 'Cancel' : 'Back'}
@@ -212,11 +258,15 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           <button type="button" className={clsx('btn btn-icon', f.favorite && 'text-lucid')} onClick={() => set('favorite', !f.favorite)} aria-label="Favorite">
             <Star size={18} className={f.favorite ? 'fill-current' : ''} />
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!canSave}>
-            {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
-          </button>
+          {renderSaveButton()}
         </div>
       </div>
+
+      {needsTitle && (
+        <p id="save-needs-title" className="text-xs text-muted -mt-3 mb-5">
+          A title is required before you can save.
+        </p>
+      )}
 
       <h1 className="text-2xl font-semibold tracking-tight mb-5">{mode === 'new' ? 'New dream' : 'Edit dream'}</h1>
 
@@ -228,8 +278,18 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               <button type="button" className="text-xs text-accent mt-1.5 hover:underline" onClick={() => set('date', todayISO())}>Use today</button>
             )}
           </Field>
-          <Field label="Title">
-            <input ref={titleRef} className="input text-base" placeholder="Give this dream a name…" value={f.title} onChange={(e) => set('title', e.target.value)} required />
+          <Field label="Title" hint={needsTitle ? 'Required to save this dream.' : undefined}>
+            <input
+              ref={titleRef}
+              className="input text-base"
+              style={needsTitle ? { outline: '1.5px solid color-mix(in srgb, var(--accent) 60%, transparent)', outlineOffset: 1 } : undefined}
+              placeholder="Give this dream a name…"
+              value={f.title}
+              onChange={(e) => set('title', e.target.value)}
+              required
+              aria-invalid={needsTitle}
+              aria-describedby={needsTitle ? 'save-needs-title' : undefined}
+            />
           </Field>
         </div>
 
@@ -331,9 +391,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               actions={(
                 <>
                   <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={!canSave}>
-                    {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
-                  </button>
+                  {renderSaveButton()}
                 </>
               )}
             />
@@ -346,11 +404,14 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         {error && <div className="card text-sm text-danger">{error}</div>}
 
         {!docked && (
-          <div className="flex justify-end gap-2 pb-6">
-            <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={!canSave}>
-              {saving ? <Spinner /> : <Check size={16} />} {mode === 'new' ? 'Save dream' : 'Save changes'}
-            </button>
+          <div className="flex flex-col items-end gap-1.5 pb-6">
+            {needsTitle && (
+              <p className="text-xs text-muted">A title is required to save.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
+              {renderSaveButton()}
+            </div>
           </div>
         )}
       </div>
@@ -394,8 +455,10 @@ function AutoTextarea({
     <div
       className={clsx(docked && 'fixed inset-x-0 z-30 flex flex-col')}
       style={docked ? {
+        // Pin to the visual viewport with bottom = keyboard inset so Cancel/Save
+        // sit above the OS keyboard even when height/dvh fallbacks are wrong.
         top: 'var(--vv-offset-top, 0px)',
-        height: 'var(--vv-height, 100dvh)',
+        bottom: 'var(--keyboard-inset, 0px)',
         background: 'var(--bg)',
         paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
@@ -419,8 +482,11 @@ function AutoTextarea({
         />
         {docked && (
           <div
-            className="shrink-0 flex items-center justify-between gap-2 py-3 border-t mt-2"
-            style={{ borderColor: 'var(--border)' }}
+            className="shrink-0 flex items-center justify-between gap-2 pt-3 border-t mt-2"
+            style={{
+              borderColor: 'var(--border)',
+              paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+            }}
           >
             <span className="text-xs text-faint tabular-nums">{words ?? 0} words</span>
             <div className="flex justify-end gap-2">{actions}</div>
