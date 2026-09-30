@@ -183,15 +183,28 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const canSave = !needsTitle && !!f.date && !saving
   const saveLabel = needsTitle ? 'Add a title' : mode === 'new' ? 'Save dream' : 'Save changes'
 
+  function focusTitle() {
+    const el = titleRef.current
+    if (!el) return
+    el.focus()
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+
   function renderSaveButton() {
+    if (needsTitle) {
+      return (
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={focusTitle}
+          aria-describedby="save-needs-title"
+        >
+          <Check size={16} /> {saveLabel}
+        </button>
+      )
+    }
     return (
-      <button
-        type="submit"
-        className="btn btn-primary"
-        disabled={!canSave}
-        title={needsTitle ? 'Add a title to save' : undefined}
-        aria-describedby={needsTitle ? 'save-needs-title' : undefined}
-      >
+      <button type="submit" className="btn btn-primary" disabled={!canSave}>
         {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
       </button>
     )
@@ -199,6 +212,10 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (needsTitle) {
+      focusTitle()
+      return
+    }
     if (!canSave) return
     setSaving(true)
     setError(null)
@@ -247,7 +264,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
       {needsTitle && (
         <p id="save-needs-title" className="text-xs text-muted -mt-3 mb-5">
-          Give this dream a title to enable Save.
+          A title is required before you can save.
         </p>
       )}
 
@@ -261,8 +278,18 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               <button type="button" className="text-xs text-accent mt-1.5 hover:underline" onClick={() => set('date', todayISO())}>Use today</button>
             )}
           </Field>
-          <Field label="Title">
-            <input ref={titleRef} className="input text-base" placeholder="Give this dream a name…" value={f.title} onChange={(e) => set('title', e.target.value)} required />
+          <Field label="Title" hint={needsTitle ? 'Required to save this dream.' : undefined}>
+            <input
+              ref={titleRef}
+              className="input text-base"
+              style={needsTitle ? { outline: '1.5px solid color-mix(in srgb, var(--accent) 60%, transparent)', outlineOffset: 1 } : undefined}
+              placeholder="Give this dream a name…"
+              value={f.title}
+              onChange={(e) => set('title', e.target.value)}
+              required
+              aria-invalid={needsTitle}
+              aria-describedby={needsTitle ? 'save-needs-title' : undefined}
+            />
           </Field>
         </div>
 
@@ -379,7 +406,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         {!docked && (
           <div className="flex flex-col items-end gap-1.5 pb-6">
             {needsTitle && (
-              <p className="text-xs text-muted">Add a title above to save.</p>
+              <p className="text-xs text-muted">A title is required to save.</p>
             )}
             <div className="flex justify-end gap-2">
               <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
