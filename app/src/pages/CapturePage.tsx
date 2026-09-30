@@ -12,14 +12,14 @@ import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard, useKeyboardOpen } from '@/lib/useKeyboardInset'
+import { keepTextareaAboveKeyboard, useKeyboardInset } from '@/lib/useKeyboardInset'
 
 export function CapturePage() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const uid = session!.user.id
   const captureDraft = draftKey(uid, 'capture')
-  const keyboardOpen = useKeyboardOpen()
+  const keyboardInset = useKeyboardInset()
   const [date, setDate] = useState(todayISO)
   const [text, setText] = useState(() => {
     try { return localStorage.getItem(draftKey(uid, 'capture')) ?? localStorage.getItem('ldj.draft.capture') ?? '' } catch { return '' }
@@ -65,21 +65,7 @@ export function CapturePage() {
     })
   }, [matches, activeEmotions])
   const canSave = text.trim().length > 0 && !saving
-  const composing = focused || keyboardOpen
-
-  // Scrolling the page away from the field dismisses the keyboard — avoids the
-  // page and caret-follow logic fighting each other while composing.
-  useEffect(() => {
-    if (!composing) return
-    let lastY = window.scrollY
-    const onScroll = () => {
-      if (Math.abs(window.scrollY - lastY) < 24) return
-      lastY = window.scrollY
-      if (document.activeElement === ta.current) ta.current?.blur()
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [composing])
+  const composing = focused || keyboardInset > 60
 
   async function save() {
     if (!canSave) return
@@ -135,7 +121,6 @@ export function CapturePage() {
   function onTextChange(value: string) {
     setText(value)
     const el = ta.current
-    // While composing, only scroll inside the textarea — page nudges feel glitchy.
     if (el) keepTextareaAboveKeyboard(el, { pageScroll: !composing })
   }
 
@@ -186,7 +171,7 @@ export function CapturePage() {
 
       <textarea
         ref={ta}
-        className="input text-base flex-1 min-h-[12rem] leading-relaxed overflow-y-auto overscroll-contain"
+        className="input text-base flex-1 min-h-[12rem] leading-relaxed overflow-y-auto"
         placeholder="I was in…"
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
@@ -196,6 +181,7 @@ export function CapturePage() {
           if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: false })
         }}
         onBlur={() => setFocused(false)}
+        onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: !composing }) }}
       />
 
       {!composing && (

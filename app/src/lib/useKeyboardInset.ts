@@ -72,22 +72,6 @@ export function useKeyboardInset() {
   return inset
 }
 
-/**
- * Keyboard open flag with hysteresis so rubber-band / viewport jitter around
- * the threshold doesn't flap docked composers on and off.
- */
-export function useKeyboardOpen(openAt = 80, closeAt = 40) {
-  const inset = useKeyboardInset()
-  const [open, setOpen] = useState(() => inset >= openAt)
-
-  useEffect(() => {
-    if (inset >= openAt) setOpen(true)
-    else if (inset <= closeAt) setOpen(false)
-  }, [inset, openAt, closeAt])
-
-  return open
-}
-
 type KeepOpts = {
   /** When false, only scroll inside the textarea — never nudge the page. */
   pageScroll?: boolean
@@ -126,38 +110,4 @@ export function keepTextareaAboveKeyboard(el: HTMLTextAreaElement, opts: KeepOpt
   }
 
   requestAnimationFrame(() => requestAnimationFrame(run))
-}
-
-/** Freeze document scroll while a docked composer owns the screen. */
-export function lockBodyScroll() {
-  const scrollY = window.scrollY
-  const body = document.body
-  const prev = {
-    overflow: body.style.overflow,
-    position: body.style.position,
-    top: body.style.top,
-    width: body.style.width,
-    htmlOverflow: document.documentElement.style.overflow,
-  }
-  body.style.overflow = 'hidden'
-  body.style.position = 'fixed'
-  body.style.top = `-${scrollY}px`
-  body.style.width = '100%'
-  document.documentElement.style.overflow = 'hidden'
-
-  const vv = window.visualViewport
-  const keepPinned = () => {
-    if (window.scrollY !== 0) window.scrollTo(0, 0)
-  }
-  vv?.addEventListener('scroll', keepPinned)
-
-  return () => {
-    vv?.removeEventListener('scroll', keepPinned)
-    body.style.overflow = prev.overflow
-    body.style.position = prev.position
-    body.style.top = prev.top
-    body.style.width = prev.width
-    document.documentElement.style.overflow = prev.htmlOverflow
-    window.scrollTo(0, scrollY)
-  }
 }
