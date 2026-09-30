@@ -72,7 +72,7 @@ export function MorningCue({ ctx }: { ctx: RecallContext | null }) {
           <p className="text-sm text-muted mt-0.5">{line}</p>
         </div>
       </div>
-      <Link to="/stats#recall-tips" className="btn btn-ghost text-sm shrink-0">All recall tips</Link>
+      <Link to="/stats#recall-tips" className="btn btn-ghost text-sm shrink-0">Recall tips</Link>
     </div>
   )
 }

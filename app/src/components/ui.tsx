@@ -70,6 +70,16 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={clsx('skeleton', className)} />
 }
 
+export function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
+      <div className="card max-w-sm w-full fade-in" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function ErrorBox({ error, retry }: { error: unknown; retry?: () => void }) {
   const msg = error instanceof Error ? error.message : String(error)
   return (

@@ -5,7 +5,7 @@ import clsx from 'clsx'
 import { deleteTag, fetchTags, mergeTags, renameTag, setTagColor } from '@/lib/api'
 import type { Tag } from '@/lib/types'
 import { TAG_COLOR_PRESETS, tagChipStyle } from '@/lib/format'
-import { EmptyState, ErrorBox, PageHeader, Skeleton } from '@/components/ui'
+import { EmptyState, ErrorBox, Modal, PageHeader, Skeleton } from '@/components/ui'
 
 export function TagsPage() {
   const [tags, setTags] = useState<Tag[] | null>(null)
@@ -127,21 +127,18 @@ export function TagsPage() {
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setConfirm(null)}>
-          <div className="card max-w-sm w-full fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="font-semibold">Delete tag “{confirm.name}”?</div>
-            <p className="text-sm text-muted mt-1">It will be removed from {confirm.dream_count ?? 0} {confirm.dream_count === 1 ? 'dream' : 'dreams'}. The dreams themselves are kept.</p>
-            <div className="flex justify-end gap-2 mt-4">
-              <button className="btn" onClick={() => setConfirm(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={() => void remove(confirm)}><Trash2 size={16} /> Delete</button>
-            </div>
+        <Modal onClose={() => setConfirm(null)}>
+          <div className="font-semibold">Delete tag “{confirm.name}”?</div>
+          <p className="text-sm text-muted mt-1">It will be removed from {confirm.dream_count ?? 0} {confirm.dream_count === 1 ? 'dream' : 'dreams'}. The dreams themselves are kept.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <button className="btn" onClick={() => setConfirm(null)}>Cancel</button>
+            <button className="btn btn-danger" onClick={() => void remove(confirm)}><Trash2 size={16} /> Delete</button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {merging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setMerging(null)}>
-          <div className="card max-w-sm w-full fade-in" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setMerging(null)}>
             <div className="font-semibold">Merge “{merging.name}”</div>
             <p className="text-sm text-muted mt-1">Dreams keep the tag you merge into. “{merging.name}” is then deleted.</p>
             <label className="label mt-4">Merge into</label>
@@ -155,8 +152,7 @@ export function TagsPage() {
               <button className="btn" onClick={() => setMerging(null)}>Cancel</button>
               <button className="btn btn-primary" disabled={!mergeInto} onClick={() => void doMerge()}><GitMerge size={16} /> Merge</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

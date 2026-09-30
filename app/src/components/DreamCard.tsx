@@ -46,7 +46,7 @@ export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { 
   )
 }
 
-export function DateBadge({ iso }: { iso: string }) {
+function DateBadge({ iso }: { iso: string }) {
   const day = fmtDate(iso, 'd')
   const mon = fmtDate(iso, 'MMM')
   const yr = fmtDate(iso, 'yyyy')

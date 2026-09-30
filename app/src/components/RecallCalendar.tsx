@@ -3,7 +3,7 @@ import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, startOfYea
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import clsx from 'clsx'
 import type { DreamLite } from '@/lib/types'
-import { rangeStart, type Range } from '@/lib/stats'
+import { heatLevel, rangeStart, recallByDate, type Range } from '@/lib/stats'
 import { fmtDate } from '@/lib/format'
 
 interface DayInfo { count: number; lucid: number }
@@ -12,13 +12,7 @@ export function RecallCalendar({ dreams, range, onSelectDay }: { dreams: DreamLi
   const { byDate, years, totalDays } = useMemo(() => {
     const start = rangeStart(range)
     const inRange = dreams.filter((d) => !start || parseISO(d.date) >= start)
-    const map = new Map<string, DayInfo>()
-    for (const d of inRange) {
-      const cur = map.get(d.date) ?? { count: 0, lucid: 0 }
-      cur.count++
-      if (d.entry_type === 'dream' && d.lucidity !== 'non-lucid') cur.lucid++
-      map.set(d.date, cur)
-    }
+    const map = recallByDate(inRange)
     const dates = [...map.keys()].sort()
     const nowY = new Date().getFullYear()
     let fromY: number
@@ -176,7 +170,7 @@ function YearRow({
               {week.map((iso, di) => {
                 if (!iso) return <span key={di} className="cal-cell" data-empty="true" />
                 const info = byDate.get(iso)
-                const level = !info ? 0 : info.count >= 3 ? 3 : info.count
+                const level = heatLevel(info?.count ?? 0)
                 return (
                   <button
                     key={iso}

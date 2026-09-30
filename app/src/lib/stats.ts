@@ -24,6 +24,24 @@ export interface StatsInput {
 
 export interface Streaks { current: number; longest: number; lastEntry: string | null }
 
+/** One bucket per calendar day: how many entries, and how many were lucid or semi-lucid. */
+export function recallByDate(dreams: DreamLite[]): Map<string, { count: number; lucid: number }> {
+  const map = new Map<string, { count: number; lucid: number }>()
+  for (const d of dreams) {
+    const cur = map.get(d.date) ?? { count: 0, lucid: 0 }
+    cur.count++
+    if (d.entry_type === 'dream' && d.lucidity !== 'non-lucid') cur.lucid++
+    map.set(d.date, cur)
+  }
+  return map
+}
+
+/** Heat level 0–3 used by the home sparkline and the stats calendar. */
+export function heatLevel(count: number): number {
+  if (count <= 0) return 0
+  return count >= 3 ? 3 : count
+}
+
 export function computeStreaks(dates: string[], today = new Date()): Streaks {
   const days = Array.from(new Set(dates)).sort()
   if (!days.length) return { current: 0, longest: 0, lastEntry: null }

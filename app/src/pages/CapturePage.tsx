@@ -36,13 +36,11 @@ export function CapturePage() {
   }, [text, captureDraft])
 
   const words = useMemo(() => wordCount(text), [text])
-  const matches = useMemo(
-    () => suggestTags(text, allTags, []).filter((s) => s.exists),
-    [text, allTags],
-  )
+  const suggestions = useMemo(() => suggestTags(text, allTags, []), [text, allTags])
+  const matches = useMemo(() => suggestions.filter((s) => s.exists), [suggestions])
   const impliedEmotions = useMemo(
-    () => new Set(suggestTags(text, allTags, []).filter((s) => isEmotion(s.name)).map((s) => s.name.toLowerCase())),
-    [text, allTags],
+    () => new Set(suggestions.filter((s) => isEmotion(s.name)).map((s) => s.name.toLowerCase())),
+    [suggestions],
   )
   const activeEmotions = useMemo(
     () => EMOTIONS.filter((e) => (e.name in emotionOn ? emotionOn[e.name] : impliedEmotions.has(e.name))),

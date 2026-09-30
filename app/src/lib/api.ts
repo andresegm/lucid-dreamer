@@ -1,6 +1,4 @@
 import { supabase } from './supabase'
-import { todayISO } from './format'
-import type { RecallContext } from './recallTips'
 import type { Dream, DreamFilters, DreamInput, DreamLite, Tag } from './types'
 
 const DREAM_SELECT = '*, dream_tags(tags(id, name, color))'
@@ -94,24 +92,6 @@ export async function fetchAllLite(): Promise<DreamLite[]> {
   }))
 }
 
-/** Enough context to pick a morning recall cue without loading every dream. */
-export async function fetchRecallContext(): Promise<RecallContext> {
-  const today = todayISO()
-  const [{ count, error: cErr }, { data, error: dErr }] = await Promise.all([
-    supabase.from('dreams').select('id', { count: 'exact', head: true }).eq('date', today),
-    supabase.from('dreams').select('date, lucidity').eq('entry_type', 'dream').order('date', { ascending: false }).limit(30),
-  ])
-  if (cErr) throw cErr
-  if (dErr) throw dErr
-  const rows = data ?? []
-  return {
-    todayCount: count ?? 0,
-    lastDate: rows[0]?.date ?? null,
-    recentCount: rows.length,
-    recentLucid: rows.filter((r) => r.lucidity !== 'non-lucid').length,
-  }
-}
-
 export async function fetchTags(): Promise<Tag[]> {
   const { data, error } = await supabase.from('tags_with_counts').select('*').order('name', { ascending: true })
   if (error) throw error
@@ -162,10 +142,16 @@ export async function createDream(input: DreamInput, source = 'app'): Promise<Dr
 
 export type ImportDraft = Omit<DreamInput, 'tagIds'> & { tagNames: string[] }
 
+/** Date + title + body only, for import dedupe. Avoids downloading tags and metadata. */
+async function fetchImportKeys(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('dreams').select('date, title, description')
+  if (error) throw error
+  return new Set((data ?? []).map((d) => `${d.date}\n${d.title}\n${d.description}`))
+}
+
 export async function importEntries(rows: ImportDraft[]): Promise<{ created: number; skipped: number }> {
   if (!rows.length) return { created: 0, skipped: 0 }
-  const existing = await fetchAllFull()
-  const seen = new Set(existing.map((d) => `${d.date}\n${d.title}\n${d.description}`))
+  const seen = await fetchImportKeys()
   let created = 0
   let skipped = 0
   for (const row of rows) {

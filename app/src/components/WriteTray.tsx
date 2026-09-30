@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
@@ -16,7 +15,6 @@ type WriteTrayProps = {
   /** Shown while a field is focused — dismisses the keyboard. */
   onDone?: () => void
   showDone?: boolean
-  leading?: ReactNode
 }
 
 /**
@@ -31,7 +29,6 @@ export function WriteTray({
   onTranscript,
   onDone,
   showDone = false,
-  leading,
 }: WriteTrayProps) {
   const keyboardInset = useKeyboardInset()
   const keyboardOpen = keyboardInset > 60
@@ -57,7 +54,6 @@ export function WriteTray({
               Done
             </button>
           )}
-          {leading}
         </div>
         <VoiceRecord variant="icon" onTranscript={onTranscript} />
         <button

@@ -41,10 +41,6 @@ export function titleFromDump(text: string): string {
   return (cut.length < first.length ? cut : first.slice(0, 56)).replace(/[.,;:]+$/, '') + '…'
 }
 
-export function pluralize(n: number, one: string, many = one + 's'): string {
-  return `${n} ${n === 1 ? one : many}`
-}
-
 export const TAG_COLOR_PRESETS = ['#7c6cf6', '#5b7cfa', '#38bdf8', '#34d399', '#f6b26c', '#fb7185', '#e879f9', '#94a3b8']
 
 export function tagChipStyle(color: string | null | undefined): { borderColor: string; background: string; color: string } | undefined {

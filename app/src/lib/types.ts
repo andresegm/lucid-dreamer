@@ -1,10 +1,10 @@
 export type Lucidity = 'non-lucid' | 'semi-lucid' | 'lucid'
 export type EntryType = 'dream' | 'note'
 
-export const LUCIDITY_OPTIONS: { value: Lucidity; label: string; short: string }[] = [
-  { value: 'non-lucid', label: 'Non-lucid', short: 'Non' },
-  { value: 'semi-lucid', label: 'Semi-lucid', short: 'Semi' },
-  { value: 'lucid', label: 'Lucid', short: 'Lucid' },
+export const LUCIDITY_OPTIONS: { value: Lucidity; label: string }[] = [
+  { value: 'non-lucid', label: 'Non-lucid' },
+  { value: 'semi-lucid', label: 'Semi-lucid' },
+  { value: 'lucid', label: 'Lucid' },
 ]
 
 export const INDUCTION_METHODS = ['DILD', 'MILD', 'WBTB', 'WILD', 'DEILD', 'EILD', 'SSILD', 'FILD'] as const

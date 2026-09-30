@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
-import { BookOpen, Check, Flame, GraduationCap, Mic, Moon, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, Check, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
-import { fetchAllLite, fetchDreams, fetchRecallContext, setFavorite } from '@/lib/api'
+import { fetchAllLite, fetchDreams, setFavorite } from '@/lib/api'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
-import { pickMorningLine, type RecallContext } from '@/lib/recallTips'
-import { computeStreaks } from '@/lib/stats'
+import { computeStreaks, heatLevel, recallByDate } from '@/lib/stats'
 import { useSettings } from '@/lib/settings'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
 import { fmtDate, todayISO } from '@/lib/format'
 import { groupNights } from '@/lib/nights'
 import { DreamCard } from '@/components/DreamCard'
+import { MorningCue } from '@/components/RecallTips'
 import { ErrorBox, Skeleton } from '@/components/ui'
+import type { RecallContext } from '@/lib/recallTips'
 
 function greeting(now = new Date()) {
   const h = now.getHours()
@@ -27,7 +28,6 @@ export function DashboardPage() {
   const { settings } = useSettings()
   const [lite, setLite] = useState<DreamLite[] | null>(null)
   const [recent, setRecent] = useState<Dream[]>([])
-  const [cue, setCue] = useState<RecallContext | null>(null)
   const [voiceLeft, setVoiceLeft] = useState<number | null>(null)
   const [error, setError] = useState<unknown>(null)
 
@@ -36,14 +36,12 @@ export function DashboardPage() {
     Promise.all([
       fetchAllLite(),
       fetchDreams({ ...EMPTY_FILTERS, includeNotes: settings.showNotesInList, sort: 'newest' }, 1, 4),
-      fetchRecallContext(),
       fetchVoiceQuota(),
     ])
-      .then(([all, page, ctx, quota]) => {
+      .then(([all, page, quota]) => {
         if (cancelled) return
         setLite(all)
         setRecent(page.rows)
-        setCue(ctx)
         setVoiceLeft(quota.remaining)
       })
       .catch((e) => { if (!cancelled) setError(e) })
@@ -51,8 +49,18 @@ export function DashboardPage() {
   }, [settings.showNotesInList])
 
   const today = todayISO()
+  const cue = useMemo<RecallContext | null>(() => {
+    if (!lite) return null
+    const dreams = lite.filter((d) => d.entry_type === 'dream')
+    const recentDreams = dreams.slice(-30)
+    return {
+      todayCount: lite.filter((d) => d.date === today).length,
+      lastDate: dreams.length ? dreams[dreams.length - 1].date : null,
+      recentCount: recentDreams.length,
+      recentLucid: recentDreams.filter((d) => d.lucidity !== 'non-lucid').length,
+    }
+  }, [lite, today])
   const wroteToday = (cue?.todayCount ?? 0) > 0
-  const morning = cue ? pickMorningLine(cue) : null
 
   const kpis = useMemo(() => {
     if (!lite) return null
@@ -107,20 +115,7 @@ export function DashboardPage() {
 
       <TonightCard />
 
-      {morning && (
-        <div className="card mb-4 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
-          <div className="flex items-start gap-2.5 min-w-0">
-            <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)' }}>
-              <Moon size={16} />
-            </span>
-            <div>
-              <div className="font-medium">No dream yet today</div>
-              <p className="text-sm text-muted mt-0.5">{morning}</p>
-            </div>
-          </div>
-          <Link to="/stats#recall-tips" className="btn btn-ghost text-sm shrink-0">Recall tips</Link>
-        </div>
-      )}
+      <MorningCue ctx={cue} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--gap)] mb-5">
         <Kpi icon={<Flame size={16} />} label="Streak" value={`${kpis.streak}d`} sub={kpis.streak ? 'keep the mornings going' : 'write tonight to start'} accent="#fb7185" />
@@ -277,14 +272,7 @@ function SparkRecall({ dreams, onSelect }: { dreams: DreamLite[]; onSelect: (iso
   const { days, byDate } = useMemo(() => {
     const end = endOfWeek(new Date(), { weekStartsOn: 1 })
     const start = startOfWeek(subWeeks(end, 11), { weekStartsOn: 1 })
-    const map = new Map<string, { count: number; lucid: number }>()
-    for (const d of dreams) {
-      const cur = map.get(d.date) ?? { count: 0, lucid: 0 }
-      cur.count++
-      if (d.entry_type === 'dream' && d.lucidity !== 'non-lucid') cur.lucid++
-      map.set(d.date, cur)
-    }
-    return { days: eachDayOfInterval({ start, end }), byDate: map }
+    return { days: eachDayOfInterval({ start, end }), byDate: recallByDate(dreams) }
   }, [dreams])
 
   const weeks: Date[][] = []
@@ -298,7 +286,7 @@ function SparkRecall({ dreams, onSelect }: { dreams: DreamLite[]; onSelect: (iso
             {week.map((d) => {
               const iso = format(d, 'yyyy-MM-dd')
               const info = byDate.get(iso)
-              const level = !info ? 0 : info.count >= 3 ? 3 : info.count
+              const level = heatLevel(info?.count ?? 0)
               return (
                 <button
                   key={iso}

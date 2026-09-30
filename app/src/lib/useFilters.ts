@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { EMPTY_FILTERS, type DreamFilters, type Lucidity, type SortOrder } from './types'
+import type { DreamFilters, Lucidity, SortOrder } from './types'
 
 /** Filters + page live in the URL so back/forward and refresh keep state. */
 export function useFilters(defaultSort: SortOrder, defaultIncludeNotes: boolean) {
@@ -65,5 +65,5 @@ export function useFilters(defaultSort: SortOrder, defaultIncludeNotes: boolean)
     (filters.favorites ? 1 : 0) +
     (filters.includeNotes !== defaultIncludeNotes ? 1 : 0)
 
-  return { filters, page, setFilters, setPage, clear, activeCount, isDefault: activeCount === 0 && filters.sort === EMPTY_FILTERS.sort }
+  return { filters, page, setFilters, setPage, clear, activeCount }
 }

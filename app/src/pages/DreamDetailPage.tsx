@@ -6,7 +6,7 @@ import { deleteDream, fetchDream, fetchRelatedDreams, setFavorite } from '@/lib/
 import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle, wordCount } from '@/lib/format'
-import { ErrorBox, Skeleton } from '@/components/ui'
+import { ErrorBox, Modal, Skeleton } from '@/components/ui'
 
 export function DreamDetailPage() {
   const { id } = useParams()
@@ -151,16 +151,14 @@ export function DreamDetailPage() {
       </div>
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setConfirm(false)}>
-          <div className="card max-w-sm w-full fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="font-semibold">Delete this dream?</div>
-            <p className="text-sm text-muted mt-1">“{dream.title}” will be permanently removed.</p>
-            <div className="flex justify-end gap-2 mt-4">
-              <button className="btn" onClick={() => setConfirm(false)}>Cancel</button>
-              <button className="btn btn-danger" onClick={remove}><Trash2 size={16} /> Delete</button>
-            </div>
+        <Modal onClose={() => setConfirm(false)}>
+          <div className="font-semibold">Delete this dream?</div>
+          <p className="text-sm text-muted mt-1">“{dream.title}” will be permanently removed.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <button className="btn" onClick={() => setConfirm(false)}>Cancel</button>
+            <button className="btn btn-danger" onClick={remove}><Trash2 size={16} /> Delete</button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
