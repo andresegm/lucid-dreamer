@@ -184,6 +184,18 @@ export function CapturePage() {
         onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: !composing }) }}
       />
 
+      {/* Bottom Save stays above the keyboard while composing so a long dump
+          doesn’t push the header Save out of reach. */}
+      <div
+        className="shrink-0 flex items-center justify-between gap-2 mt-3 pt-3"
+        style={{ borderTop: '1px solid var(--border)' }}
+      >
+        <span className="text-xs text-faint tabular-nums">{words} words</span>
+        <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void save()}>
+          {saving ? <Spinner /> : <Check size={16} />} Save
+        </button>
+      </div>
+
       {!composing && (
         <>
           <div className="mt-3 shrink-0">
