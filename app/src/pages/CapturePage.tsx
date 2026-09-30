@@ -124,11 +124,24 @@ export function CapturePage() {
     if (el) keepTextareaAboveKeyboard(el, { pageScroll: !composing })
   }
 
+  function renderSaveButton() {
+    return (
+      <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void save()}>
+        {saving ? <Spinner /> : <Check size={16} />} Save
+      </button>
+    )
+  }
+
   return (
     <div
       className="max-w-3xl fade-in flex flex-col"
       style={{
-        minHeight: composing ? 'calc(100dvh - var(--keyboard-inset, 0px) - 5.5rem)' : '70vh',
+        // Subtract top safe-area too: standalone PWA has a large inset under the
+        // status bar, and the old 100dvh math pushed the in-flow Save below the fold.
+        minHeight: composing
+          ? 'calc(100svh - var(--keyboard-inset, 0px) - env(safe-area-inset-top, 0px) - 5.5rem)'
+          : '70vh',
+        paddingBottom: composing ? '4.25rem' : undefined,
       }}
     >
       <div className="flex items-center justify-between gap-2 mb-4 shrink-0">
@@ -139,9 +152,7 @@ export function CapturePage() {
           <button type="button" className="btn btn-ghost text-sm" onClick={toFullForm}>
             Full form
           </button>
-          <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void save()}>
-            {saving ? <Spinner /> : <Check size={16} />} Save
-          </button>
+          {renderSaveButton()}
         </div>
       </div>
 
@@ -184,20 +195,16 @@ export function CapturePage() {
         onSelect={() => { if (ta.current) keepTextareaAboveKeyboard(ta.current, { pageScroll: !composing }) }}
       />
 
-      {/* Bottom Save stays above the keyboard while composing so a long dump
-          doesn’t push the header Save out of reach. */}
-      <div
-        className="shrink-0 flex items-center justify-between gap-2 mt-3 pt-3"
-        style={{ borderTop: '1px solid var(--border)' }}
-      >
-        <span className="text-xs text-faint tabular-nums">{words} words</span>
-        <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void save()}>
-          {saving ? <Spinner /> : <Check size={16} />} Save
-        </button>
-      </div>
-
       {!composing && (
         <>
+          <div
+            className="shrink-0 flex items-center justify-between gap-2 mt-3 pt-3"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <span className="text-xs text-faint tabular-nums">{words} words</span>
+            {renderSaveButton()}
+          </div>
+
           <div className="mt-3 shrink-0">
             <EmotionChips
               selected={activeEmotions.map((e) => e.name)}
@@ -218,6 +225,26 @@ export function CapturePage() {
       )}
 
       {error && <div className="card text-sm text-danger mt-3 shrink-0">{error}</div>}
+
+      {/* Fixed while composing so standalone PWA safe-area / status-bar padding
+          can’t push Save under the keyboard or off-screen. */}
+      {composing && (
+        <div
+          className="fixed inset-x-0 z-20 flex items-center justify-between gap-2 border-t"
+          style={{
+            bottom: 'max(var(--keyboard-inset, 0px), env(safe-area-inset-bottom, 0px))',
+            background: 'var(--bg)',
+            borderColor: 'var(--border)',
+            paddingTop: '0.75rem',
+            paddingBottom: '0.75rem',
+            paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+            paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+          }}
+        >
+          <span className="text-xs text-faint tabular-nums">{words} words</span>
+          {renderSaveButton()}
+        </div>
+      )}
     </div>
   )
 }
