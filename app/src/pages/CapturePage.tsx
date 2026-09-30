@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Maximize2, Sparkles } from 'lucide-react'
+import { ArrowLeft, Sparkles } from 'lucide-react'
 import { createDream, ensureTags, fetchTags } from '@/lib/api'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
@@ -8,10 +8,10 @@ import { EMOTIONS, isEmotion } from '@/lib/emotions'
 import { appendTranscript } from '@/lib/voice'
 import type { Tag } from '@/lib/types'
 import { EmotionChips } from '@/components/EmotionChips'
-import { ComposeBar, COMPOSE_BAR_RESERVE } from '@/components/ComposeBar'
+import { GrowingTextarea } from '@/components/GrowingTextarea'
+import { WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { useDismissKeyboardOnAway } from '@/lib/useKeyboardInset'
 
 export function CapturePage() {
   const navigate = useNavigate()
@@ -26,11 +26,10 @@ export function CapturePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>({})
+  const [fieldFocused, setFieldFocused] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
-  const { keyboardOpen, arm, disarm, sheetProps } = useDismissKeyboardOnAway(ta)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
-  useEffect(() => { ta.current?.focus() }, [])
   useEffect(() => {
     if (text.trim()) localStorage.setItem(captureDraft, text)
     else localStorage.removeItem(captureDraft)
@@ -116,14 +115,8 @@ export function CapturePage() {
   }
 
   return (
-    <div
-      className="max-w-3xl fade-in flex flex-col"
-      style={{
-        minHeight: 'calc(100svh - env(safe-area-inset-top, 0px) - 4.5rem)',
-        paddingBottom: COMPOSE_BAR_RESERVE,
-      }}
-    >
-      <div className="flex items-center justify-between gap-2 mb-4 shrink-0">
+    <div className="max-w-3xl fade-in" style={{ paddingBottom: WRITE_TRAY_RESERVE }}>
+      <div className="flex items-center justify-between gap-2 mb-4">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> Back
         </button>
@@ -132,71 +125,59 @@ export function CapturePage() {
         </button>
       </div>
 
-      <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-        {...sheetProps}
-      >
-        <h1 className="text-2xl font-semibold tracking-tight">Write it down</h1>
-        <p className="text-sm text-muted mt-1 mb-4">Don’t organize. Just dump everything you remember — tags and lucidity can wait.</p>
+      <h1 className="text-2xl font-semibold tracking-tight">Write it down</h1>
+      <p className="text-sm text-muted mt-1 mb-4">Don’t organize. Just dump everything you remember — tags and lucidity can wait.</p>
 
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <label className="flex items-center gap-2 text-sm text-muted">
-            Date
-            <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          {date !== todayISO() && (
-            <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
-          )}
-          <span className="ml-auto text-xs text-faint tabular-nums">{words} words</span>
-        </div>
-
-        <div className="mb-3">
-          <EmotionChips
-            selected={activeEmotions.map((e) => e.name)}
-            onToggle={(name) => setEmotionOn((o) => ({ ...o, [name]: !activeEmotions.some((e) => e.name === name) }))}
-          />
-        </div>
-
-        {saveNames.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-3 text-xs text-muted fade-in">
-            <Sparkles size={12} className="text-accent shrink-0" />
-            <span>Will tag:</span>
-            {saveNames.map((name) => (
-              <span key={name} className="chip chip-active">{name}</span>
-            ))}
-          </div>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Date
+          <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        {date !== todayISO() && (
+          <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
         )}
-
-        {error && <div className="card text-sm text-danger mb-3">{error}</div>}
-
-        {keyboardOpen && (
-          <p className="text-xs text-faint pb-8">Scroll or drag this area to close the keyboard and edit tags.</p>
-        )}
+        <span className="ml-auto text-xs text-faint tabular-nums">{words} words</span>
       </div>
 
-      <ComposeBar
+      <div className="mb-3">
+        <EmotionChips
+          selected={activeEmotions.map((e) => e.name)}
+          onToggle={(name) => setEmotionOn((o) => ({ ...o, [name]: !activeEmotions.some((e) => e.name === name) }))}
+        />
+      </div>
+
+      {saveNames.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3 text-xs text-muted fade-in">
+          <Sparkles size={12} className="text-accent shrink-0" />
+          <span>Will tag:</span>
+          {saveNames.map((name) => (
+            <span key={name} className="chip chip-active">{name}</span>
+          ))}
+        </div>
+      )}
+
+      <GrowingTextarea
+        ref={ta}
         value={text}
         onChange={setText}
+        placeholder="I was in…"
+        onKeyDown={onKey}
+        onFocus={() => setFieldFocused(true)}
+        onBlur={() => setFieldFocused(false)}
+        minPx={160}
+        maxPx={320}
+      />
+
+      {error && <div className="card text-sm text-danger mt-3">{error}</div>}
+
+      <WriteTray
         onSave={() => void save()}
         canSave={canSave}
         saving={saving}
-        placeholder="I was in…"
+        saveLabel="Save"
         onTranscript={(t) => setText((prev) => appendTranscript(prev, t))}
-        textareaRef={ta}
-        onFocus={arm}
-        onBlur={disarm}
-        onKeyDown={onKey}
-        leftAction={(
-          <button
-            type="button"
-            className="h-10 w-10 rounded-full flex items-center justify-center text-muted hover:text-fg hover:bg-elev2"
-            onClick={toFullForm}
-            aria-label="Open full form"
-            title="Full form"
-          >
-            <Maximize2 size={18} />
-          </button>
-        )}
+        showDone={fieldFocused}
+        onDone={() => { ta.current?.blur(); setFieldFocused(false) }}
       />
     </div>
   )

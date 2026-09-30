@@ -10,12 +10,11 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard, useDismissKeyboardOnAway } from '@/lib/useKeyboardInset'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
-import { VoiceRecord } from '@/components/VoiceRecord'
-import { ComposeBar, COMPOSE_BAR_RESERVE } from '@/components/ComposeBar'
+import { GrowingTextarea } from '@/components/GrowingTextarea'
+import { WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
 
 interface FormState {
   date: string
@@ -45,10 +44,9 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [loading, setLoading] = useState(mode === 'edit')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [mobileUi, setMobileUi] = useState(false)
+  const [fieldFocused, setFieldFocused] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const dreamTa = useRef<HTMLTextAreaElement>(null)
-  const { keyboardOpen, arm, disarm, sheetProps } = useDismissKeyboardOnAway(dreamTa)
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -62,14 +60,6 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }))
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)')
-    const sync = () => setMobileUi(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
 
   useEffect(() => {
     if (mode !== 'edit' || !id) return
@@ -89,7 +79,6 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
       .finally(() => setLoading(false))
   }, [mode, id, navigate])
 
-  // Persist a draft for new dreams so nothing is lost on accidental navigation
   useEffect(() => {
     if (mode !== 'new') return
     const hasContent = f.title || f.description || f.tags.length
@@ -97,24 +86,19 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     else localStorage.removeItem(newDraft)
   }, [f, mode, newDraft])
 
-  // Desktop: focus title. Mobile: leave focus alone so the bottom composer isn't fought.
   useEffect(() => {
-    if (loading || mobileUi) return
-    titleRef.current?.focus()
-  }, [loading, mobileUi])
+    if (!loading) titleRef.current?.focus()
+  }, [loading])
 
-  // Lucid implies an induction method is relevant; non-lucid clears it
   useEffect(() => {
     if (f.lucidity === 'non-lucid' && f.induction_method) set('induction_method', '')
   }, [f.lucidity]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-tagging: scan title + description (debounced) for existing tags and keyword rules.
   useEffect(() => {
     if (autoTagMode === 'off' || loading) { setSuggestions([]); return }
     const timer = setTimeout(() => {
       const found = suggestTags(`${f.title}\n${f.description}`, allTags, f.tags).filter((s) => !dismissed.current.has(s.name.toLowerCase()))
       if (autoTagMode === 'auto') {
-        // Existing tags are applied directly; brand-new keyword tags stay as suggestions so nothing is created silently.
         const apply = found.filter((s) => s.exists).map((s) => s.name)
         if (apply.length) {
           setF((s) => ({ ...s, tags: [...s.tags, ...apply.filter((n) => !s.tags.some((t) => t.toLowerCase() === n.toLowerCase()))] }))
@@ -129,7 +113,6 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   }, [f.title, f.description, f.tags, allTags, autoTagMode, loading])
 
   function onTagsChange(next: string[]) {
-    // Remember removals so auto-tagging doesn't put them straight back.
     for (const t of f.tags) if (!next.includes(t)) dismissed.current.add(t.toLowerCase())
     for (const t of next) dismissed.current.delete(t.toLowerCase())
     setAutoAdded((a) => a.filter((n) => next.includes(n)))
@@ -151,26 +134,6 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     if (!el) return
     el.focus()
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }
-
-  function renderSaveButton() {
-    if (needsTitle) {
-      return (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={focusTitle}
-          aria-describedby="save-needs-title"
-        >
-          <Check size={16} /> {saveLabel}
-        </button>
-      )
-    }
-    return (
-      <button type="submit" className="btn btn-primary" disabled={!canSave}>
-        {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
-      </button>
-    )
   }
 
   async function submit(e?: FormEvent) {
@@ -213,6 +176,11 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     }
   }
 
+  function dismissKeyboard() {
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    setFieldFocused(false)
+  }
+
   if (loading)
     return (
       <div className="flex items-center gap-2 text-muted"><Spinner /> Loading…</div>
@@ -222,7 +190,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     <form
       onSubmit={(e) => void submit(e)}
       className="max-w-3xl fade-in"
-      style={mobileUi ? { paddingBottom: COMPOSE_BAR_RESERVE } : undefined}
+      style={{ paddingBottom: WRITE_TRAY_RESERVE }}
     >
       <div className="flex items-center justify-between gap-2 mb-5">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
@@ -232,7 +200,15 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           <button type="button" className={clsx('btn btn-icon', f.favorite && 'text-lucid')} onClick={() => set('favorite', !f.favorite)} aria-label="Favorite">
             <Star size={18} className={f.favorite ? 'fill-current' : ''} />
           </button>
-          {renderSaveButton()}
+          <button
+            type={needsTitle ? 'button' : 'submit'}
+            className="btn btn-primary"
+            disabled={!needsTitle && !canSave}
+            onClick={needsTitle ? focusTitle : undefined}
+            aria-describedby={needsTitle ? 'save-needs-title' : undefined}
+          >
+            {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
+          </button>
         </div>
       </div>
 
@@ -244,13 +220,19 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
       <h1 className="text-2xl font-semibold tracking-tight mb-5">{mode === 'new' ? 'New dream' : 'Edit dream'}</h1>
 
-      <div
-        className={clsx('grid gap-5', mobileUi && 'overflow-y-auto overscroll-contain')}
-        {...(mobileUi ? sheetProps : {})}
-      >
+      <div className="grid gap-5">
         <div className="grid sm:grid-cols-[180px_1fr] gap-4">
           <Field label="Date">
-            <input type="date" className="input" value={f.date} max={todayISO()} onChange={(e) => set('date', e.target.value)} required />
+            <input
+              type="date"
+              className="input"
+              value={f.date}
+              max={todayISO()}
+              onChange={(e) => set('date', e.target.value)}
+              required
+              onFocus={() => setFieldFocused(true)}
+              onBlur={() => setFieldFocused(false)}
+            />
             {f.date !== todayISO() && (
               <button type="button" className="text-xs text-accent mt-1.5 hover:underline" onClick={() => set('date', todayISO())}>Use today</button>
             )}
@@ -266,6 +248,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               required
               aria-invalid={needsTitle}
               aria-describedby={needsTitle ? 'save-needs-title' : undefined}
+              onFocus={() => setFieldFocused(true)}
+              onBlur={() => setFieldFocused(false)}
             />
           </Field>
         </div>
@@ -308,7 +292,14 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               </p>
             </div>
             <Field label="Induction notes" className="mt-4">
-              <input className="input" placeholder="e.g. Woke at 4am, WBTB for 30 min, counted breaths…" value={f.induction_notes} onChange={(e) => set('induction_notes', e.target.value)} />
+              <input
+                className="input"
+                placeholder="e.g. Woke at 4am, WBTB for 30 min, counted breaths…"
+                value={f.induction_notes}
+                onChange={(e) => set('induction_notes', e.target.value)}
+                onFocus={() => setFieldFocused(true)}
+                onBlur={() => setFieldFocused(false)}
+              />
             </Field>
           </div>
         )}
@@ -349,98 +340,37 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
           )}
         </Field>
 
-        {/* Desktop: classic in-flow dream field. Mobile: bottom ComposeBar. */}
-        {!mobileUi && (
-          <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
-            <div className="flex justify-end mb-2">
-              <VoiceRecord onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))} />
-            </div>
-            <DesktopDreamTextarea
-              value={f.description}
-              onChange={(v) => set('description', v)}
-              placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…"
-            />
-            <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
-          </Field>
-        )}
-
-        {mobileUi && (
-          <div className="text-sm text-muted">
-            <span className="label">{f.entry_type === 'note' ? 'Note' : 'Dream'}</span>
-            <p className="mt-1">
-              {f.description.trim()
-                ? <span className="text-fg line-clamp-3 whitespace-pre-wrap">{f.description}</span>
-                : 'Write in the composer below — mic and Save stay above the keyboard.'}
-            </p>
-            <p className="text-xs text-faint mt-1 tabular-nums">{words} words</p>
-            {keyboardOpen && (
-              <p className="text-xs text-faint mt-2">Scroll or drag this area to close the keyboard.</p>
-            )}
-          </div>
-        )}
+        <Field label={f.entry_type === 'note' ? 'Note' : 'Dream'}>
+          <GrowingTextarea
+            ref={dreamTa}
+            value={f.description}
+            onChange={(v) => set('description', v)}
+            placeholder="Write everything you remember — scenes, feelings, oddities, what made you realize you were dreaming…"
+            onKeyDown={onDreamKey}
+            onFocus={() => setFieldFocused(true)}
+            onBlur={() => setFieldFocused(false)}
+            minPx={180}
+            maxPx={360}
+          />
+          <div className="text-xs text-faint mt-1.5 text-right tabular-nums">{words} words</div>
+        </Field>
 
         {error && <div className="card text-sm text-danger">{error}</div>}
 
-        {!mobileUi && (
-          <div className="flex flex-col items-end gap-1.5 pb-6">
-            {needsTitle && (
-              <p className="text-xs text-muted">A title is required to save.</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button type="button" className="btn" onClick={() => navigate(-1)}>Cancel</button>
-              {renderSaveButton()}
-            </div>
-          </div>
+        {needsTitle && (
+          <p className="text-xs text-muted text-right">A title is required to save.</p>
         )}
       </div>
 
-      {mobileUi && (
-        <ComposeBar
-          value={f.description}
-          onChange={(v) => set('description', v)}
-          onSave={() => void submit()}
-          canSave={canSave}
-          saving={saving}
-          saveLabel={saveLabel}
-          placeholder={f.entry_type === 'note' ? 'Write your note…' : 'Write everything you remember…'}
-          onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))}
-          textareaRef={dreamTa}
-          onFocus={arm}
-          onBlur={disarm}
-          onKeyDown={onDreamKey}
-        />
-      )}
+      <WriteTray
+        onSave={() => void submit()}
+        canSave={canSave}
+        saving={saving}
+        saveLabel={saveLabel}
+        onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))}
+        showDone={fieldFocused}
+        onDone={dismissKeyboard}
+      />
     </form>
-  )
-}
-
-function DesktopDreamTextarea({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.max(240, el.scrollHeight) + 'px'
-    if (document.activeElement === el) keepTextareaAboveKeyboard(el)
-  }, [value])
-
-  return (
-    <textarea
-      ref={ref}
-      className="input text-base min-h-[240px]"
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current) }}
-    />
   )
 }
