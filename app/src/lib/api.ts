@@ -68,6 +68,17 @@ export async function fetchDreams(
   return { rows: (data ?? []).map(mapDream), count: count ?? 0 }
 }
 
+/** Every row matching the filters, across pages. */
+export async function fetchDreamsAll(filters: DreamFilters, pageSize = 200): Promise<Dream[]> {
+  const first = await fetchDreams(filters, 1, pageSize)
+  if (first.rows.length >= first.count || first.rows.length === 0) return first.rows
+  const pages = Math.ceil(first.count / pageSize)
+  const rest = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, i) => fetchDreams(filters, i + 2, pageSize)),
+  )
+  return [first.rows, ...rest.map((page) => page.rows)].flat()
+}
+
 export async function fetchDream(id: string): Promise<Dream | null> {
   const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).eq('id', id).maybeSingle()
   if (error) throw error

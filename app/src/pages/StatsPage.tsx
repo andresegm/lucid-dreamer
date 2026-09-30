@@ -11,7 +11,7 @@ import { fmtDate } from '@/lib/format'
 import { EmotionRadar, HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
-import { ErrorBox, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
+import { ErrorBox, Kpi, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
 const COLORS = { lucid: 'var(--lucid)', semi: 'var(--semi)', non: 'var(--nonlucid)' }
 const METHOD_PALETTE = ['var(--accent)', 'var(--lucid)', 'var(--semi)', '#34d399', '#fb7185', '#e879f9', '#94a3b8', '#f97316']
@@ -263,19 +263,6 @@ export function StatsPage() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function Kpi({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub?: string; accent?: string }) {
-  return (
-    <div className="card">
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <span className="h-6 w-6 rounded-lg flex items-center justify-center" style={{ background: `color-mix(in srgb, ${accent ?? 'var(--accent)'} 18%, transparent)`, color: accent ?? 'var(--accent)' }}>{icon}</span>
-        {label}
-      </div>
-      <div className="text-2xl font-semibold tabular-nums mt-2 leading-none">{value}</div>
-      {sub && <div className="text-xs text-faint mt-1.5 truncate">{sub}</div>}
     </div>
   )
 }

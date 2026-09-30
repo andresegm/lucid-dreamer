@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { fetchDreams, fetchTag, setFavorite } from '@/lib/api'
+import { fetchDreamsAll, fetchTag } from '@/lib/api'
+import { toggleNullableListFavorite } from '@/lib/favorite'
 import { EMPTY_FILTERS, type Dream, type Lucidity, type Tag } from '@/lib/types'
 import { fmtDate, lucidityLabel, tagChipStyle } from '@/lib/format'
 import { useSettings } from '@/lib/settings'
@@ -22,11 +23,11 @@ export function TagPage() {
     setDreams(null)
     Promise.all([
       fetchTag(id),
-      fetchDreams({ ...EMPTY_FILTERS, tags: [id], includeNotes: true, sort: 'oldest' }, 1, 400),
+      fetchDreamsAll({ ...EMPTY_FILTERS, tags: [id], includeNotes: true, sort: 'oldest' }),
     ])
-      .then(([t, page]) => {
+      .then(([t, rows]) => {
         setTag(t)
-        setDreams(page.rows)
+        setDreams(rows)
       })
       .catch(setError)
   }, [id])
@@ -55,13 +56,8 @@ export function TagPage() {
     }
   }, [dreams, id])
 
-  async function toggleFav(d: Dream) {
-    setDreams((rs) => rs?.map((r) => (r.id === d.id ? { ...r, favorite: !r.favorite } : r)) ?? null)
-    try {
-      await setFavorite(d.id, !d.favorite)
-    } catch {
-      setDreams((rs) => rs?.map((r) => (r.id === d.id ? { ...r, favorite: d.favorite } : r)) ?? null)
-    }
+  function toggleFav(d: Dream) {
+    void toggleNullableListFavorite(d, setDreams)
   }
 
   if (error) return <ErrorBox error={error} />

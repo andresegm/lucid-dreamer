@@ -6,6 +6,13 @@ import { useKeyboardInset } from '@/lib/useKeyboardInset'
 /** Space to leave under page content so the sticky tray doesn’t cover it. */
 export const WRITE_TRAY_RESERVE = '5.5rem'
 
+/** Cmd/Ctrl+Enter saves from a dream field. */
+export function runSaveShortcut(e: { metaKey: boolean; ctrlKey: boolean; key: string; preventDefault: () => void }, save: () => void) {
+  if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return
+  e.preventDefault()
+  save()
+}
+
 type WriteTrayProps = {
   onSave: () => void
   canSave: boolean

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Star, StickyNote, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
-import { deleteDream, fetchDream, fetchRelatedDreams, setFavorite } from '@/lib/api'
+import { deleteDream, fetchDream, fetchRelatedDreams } from '@/lib/api'
+import { toggleOneFavorite } from '@/lib/favorite'
 import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle, wordCount } from '@/lib/format'
@@ -31,10 +32,9 @@ export function DreamDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  async function toggleFav() {
+  function toggleFav() {
     if (!dream) return
-    setDream({ ...dream, favorite: !dream.favorite })
-    try { await setFavorite(dream.id, !dream.favorite) } catch { setDream(dream) }
+    void toggleOneFavorite(dream, setDream)
   }
 
   async function remove() {

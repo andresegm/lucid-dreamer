@@ -11,10 +11,9 @@ interface Props {
   onClear: () => void
   tags: Tag[]
   activeCount: number
-  total: number
 }
 
-export function FilterBar({ filters, onChange, onClear, tags, activeCount, total }: Props) {
+export function FilterBar({ filters, onChange, onClear, tags, activeCount }: Props) {
   const [open, setOpen] = useState(activeCount > 0 && !filters.q)
   const [q, setQ] = useState(filters.q)
   const [tagQuery, setTagQuery] = useState('')
@@ -81,9 +80,8 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount, total
             {o.label}
           </button>
         ))}
-        <span className="sm:ml-auto text-xs text-muted basis-full sm:basis-auto">{total.toLocaleString()} {total === 1 ? 'entry' : 'entries'}</span>
         {activeCount > 0 && (
-          <button className="chip chip-btn" onClick={onClear}>
+          <button className="chip chip-btn sm:ml-auto" onClick={onClear}>
             <X size={12} /> Clear all
           </button>
         )}

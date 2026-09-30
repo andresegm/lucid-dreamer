@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Tags } from 'lucide-react'
-import { fetchDreams, fetchTags, setFavorite } from '@/lib/api'
+import { fetchDreams, fetchTags } from '@/lib/api'
+import { toggleListFavorite } from '@/lib/favorite'
 import type { Dream, Tag } from '@/lib/types'
 import { useSettings } from '@/lib/settings'
 import { useFilters } from '@/lib/useFilters'
 import { FilterBar } from '@/components/FilterBar'
-import { DreamCard } from '@/components/DreamCard'
+import { DreamNightList } from '@/components/DreamCard'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState, ErrorBox, PageHeader, Skeleton } from '@/components/ui'
-import { groupNights } from '@/lib/nights'
-import { fmtDate } from '@/lib/format'
 
 export function DreamsPage() {
   const { settings } = useSettings()
@@ -40,13 +39,8 @@ export function DreamsPage() {
   useEffect(() => { fetchTags().then(setTags).catch(() => {}) }, [])
   useEffect(() => { window.scrollTo({ top: 0 }) }, [page])
 
-  async function toggleFav(d: Dream) {
-    setRows((rs) => rs.map((r) => (r.id === d.id ? { ...r, favorite: !r.favorite } : r)))
-    try {
-      await setFavorite(d.id, !d.favorite)
-    } catch {
-      setRows((rs) => rs.map((r) => (r.id === d.id ? { ...r, favorite: d.favorite } : r)))
-    }
+  function toggleFav(d: Dream) {
+    void toggleListFavorite(d, setRows)
   }
 
   return (
@@ -64,7 +58,7 @@ export function DreamsPage() {
         }
       />
 
-      <FilterBar filters={filters} onChange={setFilters} onClear={clear} tags={tags} activeCount={activeCount} total={count} />
+      <FilterBar filters={filters} onChange={setFilters} onClear={clear} tags={tags} activeCount={activeCount} />
 
       {error ? (
         <ErrorBox error={error} retry={load} />
@@ -89,28 +83,12 @@ export function DreamsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-6 min-w-0">
-            {(filters.sort === 'title' ? [{ date: '', items: rows }] : groupNights(rows)).map((night) => (
-              <section key={night.date || 'list'} className="min-w-0">
-                {night.date && night.items.length > 1 && (
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-                    {fmtDate(night.date, 'EEE, MMM d')} · {night.items.length} entries
-                  </h2>
-                )}
-                <div className="grid gap-[var(--gap)] min-w-0">
-                  {night.items.map((d, i) => (
-                    <DreamCard
-                      key={d.id}
-                      dream={d}
-                      showPreview={settings.showPreview}
-                      onToggleFavorite={toggleFav}
-                      hideDate={Boolean(night.date && night.items.length > 1 && i > 0)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          <DreamNightList
+            dreams={rows}
+            showPreview={settings.showPreview}
+            onToggleFavorite={toggleFav}
+            grouped={filters.sort !== 'title'}
+          />
           <Pagination page={page} pageSize={settings.pageSize} total={count} onChange={setPage} />
         </>
       )}

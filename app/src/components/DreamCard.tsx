@@ -3,6 +3,7 @@ import { Star, StickyNote } from 'lucide-react'
 import clsx from 'clsx'
 import type { Dream } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/lib/format'
+import { groupNights } from '@/lib/nights'
 
 export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void; hideDate?: boolean }) {
   const isNote = dream.entry_type === 'note'
@@ -43,6 +44,44 @@ export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { 
         </div>
       </div>
     </Link>
+  )
+}
+
+export function DreamNightList({
+  dreams,
+  showPreview,
+  onToggleFavorite,
+  grouped = true,
+}: {
+  dreams: Dream[]
+  showPreview: boolean
+  onToggleFavorite?: (d: Dream) => void
+  grouped?: boolean
+}) {
+  const nights = grouped ? groupNights(dreams) : [{ date: '', items: dreams }]
+  return (
+    <div className="grid gap-6 min-w-0">
+      {nights.map((night) => (
+        <section key={night.date || 'list'} className="min-w-0">
+          {night.date && night.items.length > 1 && (
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
+              {fmtDate(night.date, 'EEE, MMM d')} · {night.items.length} entries
+            </h2>
+          )}
+          <div className="grid gap-[var(--gap)] min-w-0">
+            {night.items.map((d, i) => (
+              <DreamCard
+                key={d.id}
+                dream={d}
+                showPreview={showPreview}
+                onToggleFavorite={onToggleFavorite}
+                hideDate={Boolean(night.date && night.items.length > 1 && i > 0)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }
 

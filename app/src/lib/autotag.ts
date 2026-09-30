@@ -1,4 +1,4 @@
-import type { Tag } from './types'
+import { INDUCTION_METHODS, type Tag } from './types'
 
 /**
  * Auto-tagging: derive tag names from a dream's text.
@@ -15,35 +15,10 @@ interface Rule { tag: string; pattern: RegExp }
 const ci = (src: string) => new RegExp(`\\b(?:${src})\\b`, 'i')
 const cs = (src: string) => new RegExp(`\\b(?:${src})\\b`)
 
+/** Acronym tags for every built-in induction method. Case-sensitive, same as the form. */
+const METHOD_RULES: Rule[] = INDUCTION_METHODS.map((tag) => ({ tag, pattern: cs(tag) }))
+
 export const KEYWORD_RULES: Rule[] = [
-  // People (only applied if the tag already exists, or shown as a create-suggestion)
-  { tag: 'Lusho', pattern: ci('lusho') },
-  { tag: 'Diego', pattern: ci('diego') },
-  { tag: 'Maria', pattern: ci('maria') },
-  { tag: 'Luisa', pattern: ci('luisa') },
-  { tag: 'Tonka', pattern: ci('tonka') },
-  { tag: 'Pau', pattern: ci('pau') },
-  { tag: 'Silvana', pattern: ci('silvana') },
-  { tag: 'Carolina', pattern: ci('carolina') },
-  { tag: 'Dii', pattern: ci('dii') },
-  { tag: 'Juan', pattern: ci('juan') },
-  { tag: 'Angel', pattern: ci('angel') },
-  { tag: 'Mariana', pattern: ci('mariana') },
-  { tag: 'Fiona', pattern: ci('fiona') },
-  { tag: 'Paula', pattern: ci('paula') },
-  { tag: 'Ariana', pattern: ci('ariana') },
-  { tag: 'Alejandro', pattern: ci('alejandro') },
-  { tag: 'Vicente', pattern: ci('vicente') },
-  { tag: 'Tevin', pattern: ci('tevin') },
-  { tag: 'Megan', pattern: ci('megan') },
-  { tag: 'Laura', pattern: ci('laura') },
-  { tag: 'Alvaro', pattern: ci('alvaro') },
-  // Places
-  { tag: 'Venezuela', pattern: ci('venezuela') },
-  { tag: 'Canada', pattern: ci('canada') },
-  { tag: 'Miami', pattern: ci('miami') },
-  { tag: 'Calgary', pattern: ci('calgary') },
-  { tag: 'Florida', pattern: ci('florida') },
   // Themes
   { tag: 'zombies', pattern: ci('zombies?') },
   { tag: 'apocalypse', pattern: ci('apocalypse') },
@@ -79,11 +54,7 @@ export const KEYWORD_RULES: Rule[] = [
   { tag: 'false awakening', pattern: cs('FAs?|[Ff]alse [Aa]wakenings?') },
   { tag: 'reality check', pattern: cs('RCs?|[Rr]eality [Cc]hecks?') },
   { tag: 'sleep paralysis', pattern: cs('SP|[Ss]leep [Pp]aralysis') },
-  { tag: 'DILD', pattern: cs('DILD') },
-  { tag: 'WILD', pattern: cs('WILD') },
-  { tag: 'DEILD', pattern: cs('DEILD') },
-  { tag: 'MILD', pattern: cs('MILD') },
-  { tag: 'WBTB', pattern: cs('WBTB') },
+  ...METHOD_RULES,
 ]
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

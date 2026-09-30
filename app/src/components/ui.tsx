@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { Loader2, Moon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { todayISO } from '@/lib/format'
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={clsx('animate-spin', className)} size={18} />
@@ -63,6 +64,30 @@ export function Field({ label, hint, children, className }: { label: string; hin
       {children}
       {hint && <p className="text-xs text-faint mt-1.5">{hint}</p>}
     </div>
+  )
+}
+
+export function Kpi({ icon, label, value, sub, accent }: { icon: ReactNode; label: string; value: string; sub?: string; accent?: string }) {
+  const color = accent ?? 'var(--accent)'
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <span className="h-6 w-6 rounded-lg flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}>{icon}</span>
+        {label}
+      </div>
+      <div className="text-2xl font-semibold tabular-nums mt-2 leading-none tracking-tight">{value}</div>
+      {sub && <div className="text-xs text-faint mt-1.5 truncate">{sub}</div>}
+    </div>
+  )
+}
+
+/** Shown when a journal date is not today. */
+export function UseToday({ date, onClick, className }: { date: string; onClick: () => void; className?: string }) {
+  if (date === todayISO()) return null
+  return (
+    <button type="button" className={clsx('text-xs text-accent hover:underline', className)} onClick={onClick}>
+      Use today
+    </button>
   )
 }
 

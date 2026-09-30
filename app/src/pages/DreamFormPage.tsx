@@ -9,12 +9,12 @@ import { appendTranscript } from '@/lib/voice'
 import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
-import { draftKey } from '@/lib/drafts'
-import { Field, Segmented, Spinner } from '@/components/ui'
+import { draftKey, readDraft } from '@/lib/drafts'
+import { Field, Segmented, Spinner, UseToday } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
 import { GrowingTextarea } from '@/components/GrowingTextarea'
-import { WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
+import { runSaveShortcut, WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
 
 interface FormState {
   date: string
@@ -51,7 +51,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
       try {
-        const d = localStorage.getItem(newDraft) ?? localStorage.getItem('ldj.draft.new')
+        const d = readDraft(session!.user.id, 'new')
         if (d) return { ...JSON.parse(d), date: todayISO() } as FormState
       } catch { /* ignore */ }
     }
@@ -170,10 +170,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   }
 
   function onDreamKey(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault()
-      void submit()
-    }
+    runSaveShortcut(e, () => void submit())
   }
 
   function dismissKeyboard() {
@@ -233,9 +230,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               onFocus={() => setFieldFocused(true)}
               onBlur={() => setFieldFocused(false)}
             />
-            {f.date !== todayISO() && (
-              <button type="button" className="text-xs text-accent mt-1.5 hover:underline" onClick={() => set('date', todayISO())}>Use today</button>
-            )}
+            <UseToday date={f.date} onClick={() => set('date', todayISO())} className="mt-1.5" />
           </Field>
           <Field label="Title" hint={needsTitle ? 'Required to save this dream.' : undefined}>
             <input

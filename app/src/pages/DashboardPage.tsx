@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
 import { BookOpen, Check, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
-import { fetchAllLite, fetchDreams, setFavorite } from '@/lib/api'
+import { fetchAllLite, fetchDreams } from '@/lib/api'
+import { toggleListFavorite } from '@/lib/favorite'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
 import { computeStreaks, heatLevel, recallByDate } from '@/lib/stats'
 import { useSettings } from '@/lib/settings'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
 import { fmtDate, todayISO } from '@/lib/format'
-import { groupNights } from '@/lib/nights'
-import { DreamCard } from '@/components/DreamCard'
+import { DreamNightList } from '@/components/DreamCard'
 import { MorningCue } from '@/components/RecallTips'
-import { ErrorBox, Skeleton } from '@/components/ui'
+import { ErrorBox, Kpi, Skeleton } from '@/components/ui'
 import type { RecallContext } from '@/lib/recallTips'
 
 function greeting(now = new Date()) {
@@ -73,13 +73,8 @@ export function DashboardPage() {
     return { total: dreams.length, thisWeek, lucidPct, streak: streaks.current }
   }, [lite, settings.showNotesInList])
 
-  async function toggleFav(d: Dream) {
-    setRecent((rs) => rs.map((r) => (r.id === d.id ? { ...r, favorite: !r.favorite } : r)))
-    try {
-      await setFavorite(d.id, !d.favorite)
-    } catch {
-      setRecent((rs) => rs.map((r) => (r.id === d.id ? { ...r, favorite: d.favorite } : r)))
-    }
+  function toggleFav(d: Dream) {
+    void toggleListFavorite(d, setRecent)
   }
 
   if (error) return <ErrorBox error={error} />
@@ -137,28 +132,7 @@ export function DashboardPage() {
               <button className="btn btn-primary" onClick={() => navigate('/capture')}><Plus size={16} /> Write now</button>
             </div>
           ) : (
-            <div className="grid gap-5">
-              {groupNights(recent).map((night) => (
-                <section key={night.date}>
-                  {night.items.length > 1 && (
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
-                      {fmtDate(night.date, 'EEE, MMM d')} · {night.items.length} entries
-                    </h3>
-                  )}
-                  <div className="grid gap-[var(--gap)]">
-                    {night.items.map((d, i) => (
-                      <DreamCard
-                        key={d.id}
-                        dream={d}
-                        showPreview={settings.showPreview}
-                        onToggleFavorite={toggleFav}
-                        hideDate={night.items.length > 1 && i > 0}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <DreamNightList dreams={recent} showPreview={settings.showPreview} onToggleFavorite={toggleFav} />
           )}
         </section>
 
@@ -251,19 +225,6 @@ function TonightCard() {
           </button>
         )}
       </div>
-    </div>
-  )
-}
-
-function Kpi({ icon, label, value, sub, accent }: { icon: ReactNode; label: string; value: string; sub: string; accent?: string }) {
-  return (
-    <div className="card">
-      <div className="flex items-center gap-2 text-xs text-muted mb-2">
-        <span style={{ color: accent ?? 'var(--accent)' }}>{icon}</span>
-        {label}
-      </div>
-      <div className="text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
-      <div className="text-xs text-faint mt-1">{sub}</div>
     </div>
   )
 }

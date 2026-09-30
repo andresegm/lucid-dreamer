@@ -9,9 +9,10 @@ import { appendTranscript } from '@/lib/voice'
 import type { Tag } from '@/lib/types'
 import { EmotionChips } from '@/components/EmotionChips'
 import { GrowingTextarea } from '@/components/GrowingTextarea'
-import { WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
+import { runSaveShortcut, WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
+import { UseToday } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { draftKey } from '@/lib/drafts'
+import { draftKey, readDraft } from '@/lib/drafts'
 
 export function CapturePage() {
   const navigate = useNavigate()
@@ -19,9 +20,7 @@ export function CapturePage() {
   const uid = session!.user.id
   const captureDraft = draftKey(uid, 'capture')
   const [date, setDate] = useState(todayISO)
-  const [text, setText] = useState(() => {
-    try { return localStorage.getItem(draftKey(uid, 'capture')) ?? localStorage.getItem('ldj.draft.capture') ?? '' } catch { return '' }
-  })
+  const [text, setText] = useState(() => readDraft(uid, 'capture') ?? '')
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -106,10 +105,7 @@ export function CapturePage() {
   }
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault()
-      void save()
-    }
+    runSaveShortcut(e, () => void save())
   }
 
   return (
@@ -131,9 +127,7 @@ export function CapturePage() {
           Date
           <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
         </label>
-        {date !== todayISO() && (
-          <button type="button" className="text-xs text-accent hover:underline" onClick={() => setDate(todayISO())}>Use today</button>
-        )}
+        <UseToday date={date} onClick={() => setDate(todayISO())} />
         <span className="ml-auto text-xs text-faint tabular-nums">{words} words</span>
       </div>
 
