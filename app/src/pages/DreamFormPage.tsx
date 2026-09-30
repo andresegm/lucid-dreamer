@@ -116,9 +116,21 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   useEffect(() => {
     if (!docked) return
+    // Freeze page scroll while the dream field owns the keyboard. Allow touch
+    // scrolling only inside the compose textarea — elsewhere, block so iOS
+    // doesn't rubber-band the page under the docked chrome (jitter).
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    const blockPageScroll = (e: TouchEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest('[data-compose-scroll]')) return
+      e.preventDefault()
+    }
+    document.addEventListener('touchmove', blockPageScroll, { passive: false })
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('touchmove', blockPageScroll)
+    }
   }, [docked])
 
   // Lucid implies an induction method is relevant; non-lucid clears it
@@ -443,7 +455,10 @@ function AutoTextarea({
     if (!el) return
     if (docked) {
       el.style.height = ''
-      if (document.activeElement === el) keepTextareaAboveKeyboard(el, { pageScroll: false })
+      // Keep caret visible inside the field only — never nudge the page.
+      if (document.activeElement === el && el.selectionStart === el.value.length) {
+        el.scrollTop = el.scrollHeight
+      }
       return
     }
     el.style.height = 'auto'
@@ -451,34 +466,46 @@ function AutoTextarea({
     if (document.activeElement === el) keepTextareaAboveKeyboard(el)
   }, [value, docked])
 
+  function dismissKeyboard() {
+    ref.current?.blur()
+  }
+
   return (
     <div
       className={clsx(docked && 'fixed inset-x-0 z-30 flex flex-col')}
       style={docked ? {
-        // Pin to the visual viewport with bottom = keyboard inset so Cancel/Save
-        // sit above the OS keyboard even when height/dvh fallbacks are wrong.
-        top: 'var(--vv-offset-top, 0px)',
+        // Stable pin (not visualViewport.offsetTop) — chasing offsetTop makes
+        // the whole composer jump when iOS tries to scroll under the keyboard.
+        top: 0,
         bottom: 'var(--keyboard-inset, 0px)',
         background: 'var(--bg)',
+        paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
         paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
       } : undefined}
     >
-      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0 pt-3')}>
-        {docked && label && <span className="label shrink-0">{label}</span>}
+      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0')}>
+        {docked && (
+          <div className="shrink-0 flex items-center justify-between gap-2 mb-1.5">
+            {label && <span className="label mb-0">{label}</span>}
+            <button type="button" className="text-sm text-accent font-medium py-1 px-1" onClick={dismissKeyboard}>
+              Done
+            </button>
+          </div>
+        )}
         <textarea
           ref={ref}
+          data-compose-scroll={docked ? '' : undefined}
           className={clsx(
             'input text-base',
             docked
-              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none'
+              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none overscroll-contain'
               : 'min-h-[240px]',
           )}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
-          onSelect={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
+          onFocus={() => { if (ref.current && !docked) keepTextareaAboveKeyboard(ref.current) }}
         />
         {docked && (
           <div
