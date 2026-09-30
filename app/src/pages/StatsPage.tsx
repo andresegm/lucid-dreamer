@@ -309,7 +309,11 @@ function PairList({ pairs, onOpen }: { pairs: TagPair[]; onOpen: (aId: string, b
                     <span className="chip truncate max-w-[46%]">{p.b.name}</span>
                   </div>
                   <div className="mt-2 flex items-center gap-2.5">
-                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-elev-2)' }} aria-hidden>
+                    <div
+                      className="flex-1 h-1.5 rounded-full overflow-hidden"
+                      style={{ background: 'color-mix(in srgb, var(--text) 10%, transparent)' }}
+                      aria-hidden
+                    >
                       <div
                         className="h-full rounded-full transition-[width]"
                         style={{
