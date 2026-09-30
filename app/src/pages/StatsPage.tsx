@@ -250,7 +250,7 @@ export function StatsPage() {
           <div className="card">
             <h2 className="font-semibold mb-1">What shows up together</h2>
             <p className="text-xs text-muted mb-4">
-              Tag pairs that keep landing in the same dreams. Higher × means a stronger-than-chance link — tap a row to browse them.
+              Tag pairs that keep landing in the same dreams. Higher × = stronger than chance — tap to browse them.
             </p>
             {pairs.length ? (
               <PairList
@@ -300,17 +300,17 @@ function PairList({ pairs, onOpen }: { pairs: TagPair[]; onOpen: (aId: string, b
               className="group w-full text-left rounded-xl px-2.5 py-2.5 transition-colors hover:bg-[var(--bg-elev-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
               onClick={() => onOpen(p.a.id, p.b.id)}
             >
-              <div className="flex items-start gap-2.5">
+              <div className="flex items-start gap-2 sm:gap-2.5">
                 <span className="text-[11px] tabular-nums text-faint w-4 shrink-0 pt-1.5 text-right">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="chip truncate max-w-[46%]">{p.a.name}</span>
+                    <span className="chip truncate min-w-0">{p.a.name}</span>
                     <span className="text-faint text-xs shrink-0" aria-hidden>+</span>
-                    <span className="chip truncate max-w-[46%]">{p.b.name}</span>
+                    <span className="chip truncate min-w-0">{p.b.name}</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-2.5">
+                  <div className="mt-2 flex items-center gap-2 min-w-0">
                     <div
-                      className="flex-1 h-1.5 rounded-full overflow-hidden"
+                      className="min-w-0 flex-1 h-1.5 rounded-full overflow-hidden"
                       style={{ background: 'color-mix(in srgb, var(--text) 10%, transparent)' }}
                       aria-hidden
                     >
@@ -323,18 +323,18 @@ function PairList({ pairs, onOpen }: { pairs: TagPair[]; onOpen: (aId: string, b
                         }}
                       />
                     </div>
-                    <span className="text-[11px] text-muted tabular-nums shrink-0">
+                    <span className="text-[11px] text-muted tabular-nums shrink-0 whitespace-nowrap">
                       {p.together} {p.together === 1 ? 'dream' : 'dreams'}
                     </span>
                   </div>
                 </div>
-                <div className="shrink-0 text-right pt-0.5 w-[3.6rem]">
+                <div className="shrink-0 text-right pt-0.5 w-11 sm:w-[3.6rem]">
                   <div className="text-sm font-semibold tabular-nums leading-none tracking-tight">{p.lift.toFixed(1)}×</div>
                   <div className="text-[10px] uppercase tracking-wider text-faint mt-1">{pairStrengthLabel(p.lift)}</div>
                 </div>
                 <ChevronRight
                   size={14}
-                  className="text-faint shrink-0 mt-1.5 opacity-0 -translate-x-0.5 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
+                  className="text-faint shrink-0 mt-1.5 opacity-40 group-hover:opacity-100 transition-opacity"
                   aria-hidden
                 />
               </div>
