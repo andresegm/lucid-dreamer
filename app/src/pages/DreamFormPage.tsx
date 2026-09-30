@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type FormEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
@@ -10,7 +10,7 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { draftKey } from '@/lib/drafts'
-import { keepTextareaAboveKeyboard, useKeyboardInset } from '@/lib/useKeyboardInset'
+import { keepTextareaAboveKeyboard, lockBodyScroll, useKeyboardOpen } from '@/lib/useKeyboardInset'
 import { Field, Segmented, Spinner } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
@@ -48,13 +48,14 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [mobileUi, setMobileUi] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const dreamFieldRef = useRef<HTMLDivElement>(null)
-  const keyboardInset = useKeyboardInset()
+  // Hysteresis avoids dock flapping when iOS rubber-bands the visual viewport.
+  const keyboardOpen = useKeyboardOpen()
   // Keep Cancel/Save glued above the keyboard while writing the dream body.
   // Only dock once the keyboard is actually open — otherwise the fixed overlay
   // sticks after ✓ dismiss and covers the header Save (visible but untappable).
   // Moving focus to tags/title (keyboard ↑) or collapsing the inset releases it.
   // Desktop keeps the normal in-flow auto-growing textarea.
-  const docked = dreamCompose && mobileUi && keyboardInset > 60
+  const docked = dreamCompose && mobileUi && keyboardOpen
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -107,18 +108,16 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   useEffect(() => {
     // Only clear the compose flag once the keyboard is gone and focus has left
-    // the dream field. Docked chrome itself already requires keyboardInset > 60,
+    // the dream field. Docked chrome itself already requires keyboardOpen,
     // so ✓ dismiss releases the overlay even while the textarea stays focused.
-    if (keyboardInset < 60 && !dreamFieldRef.current?.contains(document.activeElement)) {
+    if (!keyboardOpen && !dreamFieldRef.current?.contains(document.activeElement)) {
       setDreamCompose(false)
     }
-  }, [keyboardInset])
+  }, [keyboardOpen])
 
   useEffect(() => {
     if (!docked) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    return lockBodyScroll()
   }, [docked])
 
   // Lucid implies an induction method is relevant; non-lucid clears it
@@ -437,13 +436,17 @@ function AutoTextarea({
   actions?: ReactNode
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const dismissTouch = useRef<{ y: number } | null>(null)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
     if (docked) {
       el.style.height = ''
-      if (document.activeElement === el) keepTextareaAboveKeyboard(el, { pageScroll: false })
+      // Scroll inside the field only — page scrolling while docked causes iOS jitter.
+      if (document.activeElement === el && el.selectionStart === el.value.length) {
+        el.scrollTop = el.scrollHeight
+      }
       return
     }
     el.style.height = 'auto'
@@ -451,34 +454,70 @@ function AutoTextarea({
     if (document.activeElement === el) keepTextareaAboveKeyboard(el)
   }, [value, docked])
 
+  function dismissKeyboard() {
+    ref.current?.blur()
+  }
+
+  function onChromeTouchStart(e: ReactTouchEvent<HTMLDivElement>) {
+    if (!docked) return
+    // Ignore gestures that start inside the textarea — those scroll the text.
+    if ((e.target as HTMLElement).closest('textarea, button, a')) return
+    dismissTouch.current = { y: e.touches[0]?.clientY ?? 0 }
+  }
+
+  function onChromeTouchMove(e: ReactTouchEvent<HTMLDivElement>) {
+    const start = dismissTouch.current
+    if (!start) return
+    const y = e.touches[0]?.clientY ?? start.y
+    // Pull down on the dock chrome (or scroll the page past the field) → close keyboard.
+    if (y - start.y > 36) {
+      dismissTouch.current = null
+      dismissKeyboard()
+    }
+  }
+
+  function onChromeTouchEnd() {
+    dismissTouch.current = null
+  }
+
   return (
     <div
       className={clsx(docked && 'fixed inset-x-0 z-30 flex flex-col')}
       style={docked ? {
-        // Pin to the visual viewport with bottom = keyboard inset so Cancel/Save
-        // sit above the OS keyboard even when height/dvh fallbacks are wrong.
-        top: 'var(--vv-offset-top, 0px)',
+        // Stable pin: do not chase visualViewport.offsetTop (that jumps on iOS scroll).
+        top: 0,
         bottom: 'var(--keyboard-inset, 0px)',
         background: 'var(--bg)',
+        paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
         paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
       } : undefined}
+      onTouchStart={onChromeTouchStart}
+      onTouchMove={onChromeTouchMove}
+      onTouchEnd={onChromeTouchEnd}
+      onTouchCancel={onChromeTouchEnd}
     >
-      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0 pt-3')}>
-        {docked && label && <span className="label shrink-0">{label}</span>}
+      <div className={clsx(docked && 'max-w-3xl w-full mx-auto flex flex-col flex-1 min-h-0')}>
+        {docked && (
+          <div className="shrink-0 flex items-center justify-between gap-2 mb-1.5">
+            {label && <span className="label mb-0">{label}</span>}
+            <button type="button" className="text-xs text-accent hover:underline py-1" onClick={dismissKeyboard}>
+              Done
+            </button>
+          </div>
+        )}
         <textarea
           ref={ref}
           className={clsx(
             'input text-base',
             docked
-              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none'
+              ? 'flex-1 min-h-0 w-full overflow-y-auto resize-none overscroll-contain'
               : 'min-h-[240px]',
           )}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
-          onSelect={() => { if (ref.current) keepTextareaAboveKeyboard(ref.current, { pageScroll: !docked }) }}
         />
         {docked && (
           <div
