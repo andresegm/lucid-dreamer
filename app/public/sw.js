@@ -1,5 +1,5 @@
 /* App-shell service worker. Network-first so deploys show up; cache as fallback. */
-const CACHE = 'lucid-v1'
+const CACHE = 'lucid-v2'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -13,11 +13,26 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+function serveAppShell() {
+  return caches.match('/index.html').then((hit) => hit || fetch('/index.html'))
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request
   if (req.method !== 'GET') return
   const url = new URL(req.url)
   if (url.origin !== self.location.origin) return
+
+  // Deep links like /dream/:id have no static file. If the network returns 404
+  // (missing SPA rewrite) or is offline, fall back to the app shell so React Router can run.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => (res.ok ? res : serveAppShell()))
+        .catch(() => serveAppShell()),
+    )
+    return
+  }
 
   event.respondWith(
     fetch(req)
