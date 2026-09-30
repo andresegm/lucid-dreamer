@@ -113,9 +113,20 @@ export function VoiceRecord({
         ? `Stop recording ${fmtElapsed(elapsed)}`
         : atLimit
           ? 'Voice limit reached'
-          : 'Record'
+          : `Record · ${remaining} left today`
+    const quotaHint = atLimit
+      ? '0 left'
+      : remaining === 1
+        ? '1 left'
+        : `${remaining} left`
     return (
-      <div className="relative flex flex-col items-center">
+      <div className="relative flex items-center gap-1.5">
+        <span
+          className={clsx('text-[11px] tabular-nums whitespace-nowrap', atLimit ? 'text-danger' : 'text-faint')}
+          title={atLimit ? '2 recordings used today · resets tomorrow' : `${remaining} of ${VOICE_DAILY_LIMIT} voice recordings left today`}
+        >
+          {phase === 'recording' ? fmtElapsed(elapsed) : quotaHint}
+        </span>
         <button
           type="button"
           className={clsx(
@@ -130,10 +141,11 @@ export function VoiceRecord({
         >
           {phase === 'transcribing' ? <Spinner className="h-4 w-4" /> : phase === 'recording' ? <Square size={18} /> : <Mic size={20} />}
         </button>
-        {phase === 'recording' && (
-          <span className="absolute -top-5 text-[10px] tabular-nums text-danger whitespace-nowrap">{fmtElapsed(elapsed)}</span>
+        {error && (
+          <span className="absolute left-0 right-0 top-full mt-0.5 text-[10px] text-danger text-right truncate">
+            {error}
+          </span>
         )}
-        {error && <span className="absolute top-full mt-1 text-[10px] text-danger whitespace-nowrap max-w-[10rem] truncate">{error}</span>}
       </div>
     )
   }
