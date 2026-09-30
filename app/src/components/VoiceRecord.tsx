@@ -22,7 +22,14 @@ function limitMessage() {
   return `Each account can record twice a day (${VOICE_DAILY_LIMIT} × 5 min).`
 }
 
-export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => void }) {
+export function VoiceRecord({
+  onTranscript,
+  variant = 'default',
+}: {
+  onTranscript: (text: string) => void
+  /** Icon-only control for chat-style composers. */
+  variant?: 'default' | 'icon'
+}) {
   const rec = useRef<Recorder | null>(null)
   const finishing = useRef(false)
   const [phase, setPhase] = useState<'idle' | 'recording' | 'transcribing'>('idle')
@@ -98,6 +105,38 @@ export function VoiceRecord({ onTranscript }: { onTranscript: (text: string) => 
   }
 
   if (!supported) return null
+
+  if (variant === 'icon') {
+    const label = phase === 'transcribing'
+      ? 'Transcribing'
+      : phase === 'recording'
+        ? `Stop recording ${fmtElapsed(elapsed)}`
+        : atLimit
+          ? 'Voice limit reached'
+          : 'Record'
+    return (
+      <div className="relative flex flex-col items-center">
+        <button
+          type="button"
+          className={clsx(
+            'h-10 w-10 rounded-full flex items-center justify-center transition-colors',
+            phase === 'recording' ? 'bg-danger/20 text-danger' : 'text-fg hover:bg-elev2',
+          )}
+          onClick={() => void toggle()}
+          disabled={phase === 'transcribing' || (atLimit && phase === 'idle')}
+          aria-pressed={phase === 'recording'}
+          aria-label={label}
+          title={label}
+        >
+          {phase === 'transcribing' ? <Spinner className="h-4 w-4" /> : phase === 'recording' ? <Square size={18} /> : <Mic size={20} />}
+        </button>
+        {phase === 'recording' && (
+          <span className="absolute -top-5 text-[10px] tabular-nums text-danger whitespace-nowrap">{fmtElapsed(elapsed)}</span>
+        )}
+        {error && <span className="absolute top-full mt-1 text-[10px] text-danger whitespace-nowrap max-w-[10rem] truncate">{error}</span>}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-end gap-1">
