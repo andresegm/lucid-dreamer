@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
@@ -22,6 +23,11 @@ type WriteTrayProps = {
   /** Shown while a field is focused — dismisses the keyboard. */
   onDone?: () => void
   showDone?: boolean
+  /** Leave the write screen. When `confirmDiscard` is set, this runs only after a second tap. */
+  onDiscard: () => void
+  /** Ask before discarding. Empty writes leave on the first tap. */
+  confirmDiscard?: boolean
+  discardTitle?: string
 }
 
 /**
@@ -36,9 +42,26 @@ export function WriteTray({
   onTranscript,
   onDone,
   showDone = false,
+  onDiscard,
+  confirmDiscard = false,
+  discardTitle = 'Discard this dream?',
 }: WriteTrayProps) {
   const keyboardInset = useKeyboardInset()
   const keyboardOpen = keyboardInset > 60
+  const [armed, setArmed] = useState(false)
+
+  useEffect(() => {
+    if (!armed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setArmed(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [armed])
+
+  useEffect(() => {
+    if (!confirmDiscard) setArmed(false)
+  }, [confirmDiscard])
 
   return (
     <div
@@ -54,24 +77,41 @@ export function WriteTray({
         paddingBottom: keyboardOpen ? '0.55rem' : '0.65rem',
       }}
     >
-      <div className="max-w-3xl mx-auto flex items-center gap-2">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
-          {showDone && onDone && (
-            <button type="button" className="btn btn-ghost text-sm" onClick={onDone}>
-              Done
+      {armed ? (
+        <div className="max-w-3xl mx-auto">
+          <p className="text-sm font-medium mb-2">{discardTitle}</p>
+          <div className="flex items-center gap-3">
+            <button type="button" className="btn flex-1" onClick={() => setArmed(false)}>
+              Keep writing
             </button>
-          )}
+            <button type="button" className="btn btn-danger flex-1" onClick={onDiscard}>
+              Discard
+            </button>
+          </div>
         </div>
-        <VoiceRecord variant="icon" onTranscript={onTranscript} />
-        <button
-          type="button"
-          className="btn btn-primary shrink-0"
-          disabled={!canSave}
-          onClick={onSave}
-        >
-          {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
-        </button>
-      </div>
+      ) : (
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+          <button type="button" className="btn min-h-11 shrink-0" onClick={() => (confirmDiscard ? setArmed(true) : onDiscard())}>
+            Cancel
+          </button>
+          <div className="flex items-center gap-2 ml-auto min-w-0 pl-2">
+            {showDone && onDone && (
+              <button type="button" className="btn btn-ghost text-sm" onClick={onDone}>
+                Done
+              </button>
+            )}
+            <VoiceRecord variant="icon" onTranscript={onTranscript} />
+            <button
+              type="button"
+              className="btn btn-primary shrink-0"
+              disabled={!canSave}
+              onClick={onSave}
+            >
+              {saving ? <Spinner /> : <Check size={16} />} {saveLabel}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

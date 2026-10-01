@@ -27,9 +27,11 @@ export function CapturePage() {
   const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>(() => boot?.emotions ?? {})
   const [fieldFocused, setFieldFocused] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
+  const discarded = useRef(false)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
   useEffect(() => {
+    if (discarded.current) return
     writeCapture(uid, text.trim() ? { text, date, emotions: emotionOn } : null)
   }, [text, date, emotionOn, uid])
 
@@ -104,6 +106,12 @@ export function CapturePage() {
     navigate('/new')
   }
 
+  function discard() {
+    discarded.current = true
+    writeCapture(uid, null)
+    navigate(-1)
+  }
+
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
     runSaveShortcut(e, () => void save())
   }
@@ -170,6 +178,8 @@ export function CapturePage() {
         onTranscript={(t) => setText((prev) => appendTranscript(prev, t))}
         showDone={fieldFocused}
         onDone={() => { ta.current?.blur(); setFieldFocused(false) }}
+        onDiscard={discard}
+        confirmDiscard={text.trim().length > 0}
       />
     </div>
   )

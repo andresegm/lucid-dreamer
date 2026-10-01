@@ -48,6 +48,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [fieldFocused, setFieldFocused] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const dreamTa = useRef<HTMLTextAreaElement>(null)
+  const discarded = useRef(false)
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
@@ -83,11 +84,12 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   }, [mode, id, navigate, uid])
 
   useEffect(() => {
-    if (mode === 'new') writeFormDraft(uid, formDraftOpen(f) ? f : null)
+    if (discarded.current || mode !== 'new') return
+    writeFormDraft(uid, formDraftOpen(f) ? f : null)
   }, [f, mode, uid])
 
   useEffect(() => {
-    if (mode !== 'edit' || !id || editBase?.id !== id) return
+    if (discarded.current || mode !== 'edit' || !id || editBase?.id !== id) return
     const dirty = formSnapshot(f) !== formSnapshot(editBase.form)
     writeEditDraft(uid, id, dirty ? f : null)
   }, [f, editBase, mode, id, uid])
@@ -180,6 +182,15 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     runSaveShortcut(e, () => void submit())
   }
 
+  const editDirty = mode === 'edit' && !!id && editBase?.id === id && formSnapshot(f) !== formSnapshot(editBase.form)
+
+  function discard() {
+    discarded.current = true
+    if (mode === 'new') writeFormDraft(uid, null)
+    else if (id) writeEditDraft(uid, id, null)
+    navigate(-1)
+  }
+
   function dismissKeyboard() {
     ;(document.activeElement as HTMLElement | null)?.blur?.()
     setFieldFocused(false)
@@ -198,7 +209,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     >
       <div className="flex items-center justify-between gap-2 mb-5">
         <button type="button" className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
-          <ArrowLeft size={16} /> {mode === 'new' ? 'Cancel' : 'Back'}
+          <ArrowLeft size={16} /> Back
         </button>
         <div className="flex items-center gap-2">
           <button type="button" className={clsx('btn btn-icon', f.favorite && 'text-lucid')} onClick={() => set('favorite', !f.favorite)} aria-label="Favorite">
@@ -372,6 +383,9 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         onTranscript={(t) => setF((s) => ({ ...s, description: appendTranscript(s.description, t) }))}
         showDone={fieldFocused}
         onDone={dismissKeyboard}
+        onDiscard={discard}
+        confirmDiscard={mode === 'new' ? formDraftOpen(f) : editDirty}
+        discardTitle={mode === 'edit' ? 'Discard changes?' : 'Discard this dream?'}
       />
     </form>
   )
