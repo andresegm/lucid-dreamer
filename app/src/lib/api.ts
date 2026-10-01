@@ -88,8 +88,9 @@ export async function fetchDream(id: string): Promise<Dream | null> {
 /**
  * Uniform random dream: each of the N dreams has probability 1/N.
  * Two round-trips (count + one-row range) — never loads the full journal.
+ * Pass `excludeId` to prefer a different dream when more than one exists.
  */
-export async function fetchRandomDream(): Promise<Dream | null> {
+export async function fetchRandomDream(excludeId?: string): Promise<Dream | null> {
   const { count, error: cErr } = await supabase
     .from('dreams')
     .select('id', { count: 'exact', head: true })
@@ -97,7 +98,16 @@ export async function fetchRandomDream(): Promise<Dream | null> {
   if (cErr) throw cErr
   if (!count) return null
 
-  const offset = Math.floor(Math.random() * count)
+  let offset = Math.floor(Math.random() * count)
+  let dream = await fetchDreamAtOffset(offset)
+  if (excludeId && dream?.id === excludeId && count > 1) {
+    offset = (offset + 1 + Math.floor(Math.random() * (count - 1))) % count
+    dream = await fetchDreamAtOffset(offset)
+  }
+  return dream
+}
+
+async function fetchDreamAtOffset(offset: number): Promise<Dream | null> {
   const { data, error } = await supabase
     .from('dreams')
     .select(DREAM_SELECT)

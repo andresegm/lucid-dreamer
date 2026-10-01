@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, Star, StickyNote, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Pencil, Share2, Star, StickyNote, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { deleteDream, fetchDream, fetchRelatedDreams } from '@/lib/api'
 import { toggleOneFavorite } from '@/lib/favorite'
@@ -9,15 +9,50 @@ import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle, wordCount } from '@/lib/format'
 import { ErrorBox, Modal, Skeleton } from '@/components/ui'
 
+function dreamShareText(dream: Dream): string {
+  const title = dream.title?.trim() || 'Untitled'
+  const date = fmtDate(dream.date, 'EEEE, MMMM d, yyyy')
+  const lucidity = dream.entry_type === 'note' ? 'Note' : lucidityLabel(dream.lucidity)
+  const body = dream.description.trim()
+  return `${title}\nDate: ${date}\nLucidity: ${lucidity}\n\n${body}`
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const el = document.createElement('textarea')
+    el.value = text
+    el.setAttribute('readonly', '')
+    el.style.position = 'fixed'
+    el.style.left = '-9999px'
+    document.body.appendChild(el)
+    el.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(el)
+    return ok
+  } catch {
+    return false
+  }
+}
+
 export function DreamDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const captured = Boolean((useLocation().state as { captured?: boolean } | null)?.captured)
+  const location = useLocation()
+  const captured = Boolean((location.state as { captured?: boolean } | null)?.captured)
   const [dream, setDream] = useState<Dream | null>(null)
   const [related, setRelated] = useState<{ dream: Dream; shared: Tag[] }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
   const [confirm, setConfirm] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -32,9 +67,21 @@ export function DreamDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  useEffect(() => {
+    if (!copied) return
+    const t = window.setTimeout(() => setCopied(false), 1600)
+    return () => window.clearTimeout(t)
+  }, [copied])
+
   function toggleFav() {
     if (!dream) return
     void toggleOneFavorite(dream, setDream)
+  }
+
+  async function share() {
+    if (!dream) return
+    const ok = await copyText(dreamShareText(dream))
+    if (ok) setCopied(true)
   }
 
   async function remove() {
@@ -66,6 +113,15 @@ export function DreamDetailPage() {
         <div className="flex items-center gap-1 shrink-0">
           <button className={clsx('btn btn-icon', dream.favorite && 'text-lucid')} onClick={toggleFav} aria-label="Toggle favorite">
             <Star size={18} className={dream.favorite ? 'fill-current' : ''} />
+          </button>
+          <button
+            type="button"
+            className={clsx('btn btn-icon', copied && 'text-lucid')}
+            onClick={() => void share()}
+            aria-label={copied ? 'Copied' : 'Share dream'}
+            title={copied ? 'Copied' : 'Copy dream'}
+          >
+            {copied ? <Check size={18} /> : <Share2 size={18} />}
           </button>
           <Link to={`/dream/${dream.id}/edit`} className="btn">
             <Pencil size={16} /> Edit

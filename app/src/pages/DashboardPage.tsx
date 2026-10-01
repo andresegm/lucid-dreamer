@@ -84,7 +84,7 @@ export function DashboardPage() {
     try {
       const dream = await fetchRandomDream()
       if (!dream) return
-      navigate(`/dream/${dream.id}`)
+      navigate(`/dream/${dream.id}`, { state: { fromRandom: true } })
     } catch (e) {
       setError(e)
     } finally {
