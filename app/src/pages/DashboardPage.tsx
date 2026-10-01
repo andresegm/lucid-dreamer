@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
-import { BookOpen, Check, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
+import { BookOpen, Check, Dices, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
-import { fetchAllLite, fetchDreams } from '@/lib/api'
+import { fetchAllLite, fetchDreams, fetchRandomDream } from '@/lib/api'
 import { toggleListFavorite } from '@/lib/favorite'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
 import { computeStreaks, heatLevel, recallByDate } from '@/lib/stats'
@@ -30,6 +30,7 @@ export function DashboardPage() {
   const [recent, setRecent] = useState<Dream[]>([])
   const [voiceLeft, setVoiceLeft] = useState<number | null>(null)
   const [error, setError] = useState<unknown>(null)
+  const [randomBusy, setRandomBusy] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -75,6 +76,20 @@ export function DashboardPage() {
 
   function toggleFav(d: Dream) {
     void toggleListFavorite(d, setRecent)
+  }
+
+  async function openRandomDream() {
+    if (randomBusy) return
+    setRandomBusy(true)
+    try {
+      const dream = await fetchRandomDream()
+      if (!dream) return
+      navigate(`/dream/${dream.id}`)
+    } catch (e) {
+      setError(e)
+    } finally {
+      setRandomBusy(false)
+    }
   }
 
   if (error) return <ErrorBox error={error} />
@@ -149,6 +164,14 @@ export function DashboardPage() {
             <h2 className="font-semibold mb-3">Jump</h2>
             <div className="grid grid-cols-2 gap-2">
               <Link to="/new" className="btn justify-start"><Plus size={16} /> New dream</Link>
+              <button
+                type="button"
+                className="btn justify-start"
+                disabled={randomBusy || kpis.total === 0}
+                onClick={() => void openRandomDream()}
+              >
+                <Dices size={16} /> {randomBusy ? 'Picking…' : 'Random dream'}
+              </button>
               <Link to="/tags" className="btn justify-start"><Tags size={16} /> Tags</Link>
               <Link to="/stats#lucid" className="btn justify-start"><Sparkles size={16} /> Lucid</Link>
               <Link to="/learn" className="btn justify-start"><GraduationCap size={16} /> Learn</Link>
