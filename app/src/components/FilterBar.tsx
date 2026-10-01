@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUpDown, Calendar, ChevronDown, Search, SlidersHorizontal, Star, X } from 'lucide-react'
 import clsx from 'clsx'
 import { INDUCTION_METHODS, LUCIDITY_OPTIONS, type DreamFilters, type Lucidity, type SortOrder, type Tag } from '@/lib/types'
@@ -17,6 +17,10 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount }: Pro
   const [open, setOpen] = useState(activeCount > 0 && !filters.q)
   const [q, setQ] = useState(filters.q)
   const [tagQuery, setTagQuery] = useState('')
+  const dates = useRef({ from: filters.from, to: filters.to })
+  useEffect(() => {
+    dates.current = { from: filters.from, to: filters.to }
+  }, [filters.from, filters.to])
 
   // debounce search
   useEffect(() => {
@@ -28,6 +32,13 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount }: Pro
 
   function toggle<T>(list: T[], v: T): T[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v]
+  }
+
+  function commitDate(key: 'from' | 'to', value: string) {
+    const next = value || null
+    if (next === dates.current[key]) return
+    dates.current = { ...dates.current, [key]: next }
+    onChange({ [key]: next })
   }
 
   const visibleTags = tags
@@ -94,9 +105,21 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount }: Pro
             <div>
               <span className="label flex items-center gap-1.5"><Calendar size={12} /> Date range</span>
               <div className="flex items-center gap-2 min-w-0">
-                <input type="date" className="input min-w-0 flex-1" value={filters.from ?? ''} onChange={(e) => onChange({ from: e.target.value || null })} />
+                <input
+                  type="date"
+                  className="input min-w-0 flex-1"
+                  value={filters.from ?? ''}
+                  onChange={(e) => commitDate('from', e.target.value)}
+                  onBlur={(e) => commitDate('from', e.target.value)}
+                />
                 <span className="text-faint text-xs shrink-0">to</span>
-                <input type="date" className="input min-w-0 flex-1" value={filters.to ?? ''} onChange={(e) => onChange({ to: e.target.value || null })} />
+                <input
+                  type="date"
+                  className="input min-w-0 flex-1"
+                  value={filters.to ?? ''}
+                  onChange={(e) => commitDate('to', e.target.value)}
+                  onBlur={(e) => commitDate('to', e.target.value)}
+                />
               </div>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {[

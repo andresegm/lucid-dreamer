@@ -56,12 +56,13 @@ export function LearnPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (Date.now() < ignoreObsUntil.current) return
-        const visible = entries
+        // The section nearest the top of the screen, not the one that fills the most of the band.
+        const topmost = entries
           .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
-        if (visible?.target.id) setActive(visible.target.id as LearnSectionId)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+        if (topmost?.target.id) setActive(topmost.target.id as LearnSectionId)
       },
-      { rootMargin: '-20% 0px -55% 0px', threshold: [0.15, 0.4, 0.7] },
+      { rootMargin: '-120px 0px -50% 0px', threshold: [0, 0.2, 0.5] },
     )
     for (const n of nodes) observer.observe(n)
     return () => observer.disconnect()
@@ -84,7 +85,11 @@ export function LearnPage() {
         subtitle="The quiet basics — awareness, sleep, recall, journaling, and the induction methods you can tag."
       />
 
-      <nav className="sticky top-0 z-10 -mx-1 px-1 py-2 mb-5 backdrop-blur-xl" style={{ background: 'color-mix(in srgb, var(--bg) 88%, transparent)' }} aria-label="Learn sections">
+      <nav
+        className="sticky z-10 -mx-1 px-1 py-2 mb-5 backdrop-blur-xl"
+        style={{ top: 'env(safe-area-inset-top, 0px)', background: 'color-mix(in srgb, var(--bg) 92%, transparent)' }}
+        aria-label="Learn sections"
+      >
         <div className="flex flex-wrap gap-1.5">
           {LEARN_SECTIONS.map((s) => (
             <button
@@ -189,7 +194,7 @@ export function LearnPage() {
               <article
                 key={m.id}
                 id={`method-${m.id.toLowerCase()}`}
-                className="rounded-xl p-3.5 scroll-mt-24"
+                className="rounded-xl p-3.5 scroll-mt-[calc(env(safe-area-inset-top,0px)+4.5rem)]"
                 style={{ background: 'var(--bg-elev-2)', border: '1px solid var(--border)' }}
               >
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-1.5">
@@ -217,7 +222,7 @@ export function LearnPage() {
 
 function Section({ id, children }: { id: LearnSectionId; children: ReactNode }) {
   return (
-    <section id={id} className="card scroll-mt-24">
+    <section id={id} className="card scroll-mt-[calc(env(safe-area-inset-top,0px)+4.5rem)]">
       {children}
     </section>
   )

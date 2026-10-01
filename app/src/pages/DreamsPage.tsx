@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Tags } from 'lucide-react'
 import { fetchDreams, fetchTags } from '@/lib/api'
@@ -20,18 +20,22 @@ export function DreamsPage() {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
+  const request = useRef(0)
 
   const load = useCallback(async () => {
+    const id = ++request.current
     setLoading(true)
     setError(null)
     try {
       const r = await fetchDreams(filters, page, settings.pageSize)
+      if (id !== request.current) return
       setRows(r.rows)
       setCount(r.count)
     } catch (e) {
+      if (id !== request.current) return
       setError(e)
     } finally {
-      setLoading(false)
+      if (id === request.current) setLoading(false)
     }
   }, [filters, page, settings.pageSize])
 

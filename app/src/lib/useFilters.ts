@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { DreamFilters, Lucidity, SortOrder } from './types'
 
@@ -23,10 +23,16 @@ export function useFilters(defaultSort: SortOrder, defaultIncludeNotes: boolean)
   }, [sp, defaultSort, defaultIncludeNotes])
 
   const page = Math.max(1, parseInt(sp.get('page') ?? '1', 10) || 1)
+  // Patches in the same turn (a date blur plus a tag click) must see each other.
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
+  const pageRef = useRef(page)
+  pageRef.current = page
 
   const setFilters = useCallback(
     (patch: Partial<DreamFilters>, resetPage = true) => {
-      const next = { ...filters, ...patch }
+      const next = { ...filtersRef.current, ...patch }
+      filtersRef.current = next
       const p = new URLSearchParams()
       if (next.q) p.set('q', next.q)
       if (next.from) p.set('from', next.from)
@@ -38,10 +44,10 @@ export function useFilters(defaultSort: SortOrder, defaultIncludeNotes: boolean)
       if (next.favorites) p.set('fav', '1')
       if (next.includeNotes !== defaultIncludeNotes) p.set('notes', next.includeNotes ? '1' : '0')
       if (next.sort !== defaultSort) p.set('sort', next.sort)
-      if (!resetPage && page > 1) p.set('page', String(page))
+      if (!resetPage && pageRef.current > 1) p.set('page', String(pageRef.current))
       setSp(p, { replace: false })
     },
-    [filters, page, setSp, defaultSort, defaultIncludeNotes],
+    [setSp, defaultSort, defaultIncludeNotes],
   )
 
   const setPage = useCallback(
