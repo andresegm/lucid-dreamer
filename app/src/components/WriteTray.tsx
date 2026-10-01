@@ -4,8 +4,8 @@ import { VoiceRecord } from '@/components/VoiceRecord'
 import { Spinner } from '@/components/ui'
 import { useKeyboardInset } from '@/lib/useKeyboardInset'
 
-/** Space to leave under page content so the sticky tray doesn’t cover it. */
-export const WRITE_TRAY_RESERVE = '5.5rem'
+/** Space under the page so the word count and title hint clear the tray, including the home-indicator inset the tray sits on. */
+export const WRITE_TRAY_RESERVE = 'calc(6.5rem + env(safe-area-inset-bottom, 0px))'
 
 /** Cmd/Ctrl+Enter saves from a dream field. */
 export function runSaveShortcut(e: { metaKey: boolean; ctrlKey: boolean; key: string; preventDefault: () => void }, save: () => void) {

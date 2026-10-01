@@ -371,7 +371,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         {error && <div className="card text-sm text-danger">{error}</div>}
 
         {needsTitle && (
-          <p className="text-xs text-muted text-right">A title is required to save.</p>
+          <p className="text-xs text-muted text-right m-0 mt-2">A title is required to save.</p>
         )}
       </div>
 
