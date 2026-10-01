@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, ChartPie, GraduationCap, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { DraftBubble } from '@/components/DraftBubble'
+import { RandomDreamBubble } from '@/components/RandomDreamBubble'
 import { useAuth } from '@/lib/auth'
 import { useKeyboardInset } from '@/lib/useKeyboardInset'
 
@@ -31,6 +32,8 @@ export function Layout() {
     location.pathname === '/new' ||
     /^\/dream\/[^/]+\/edit$/.test(location.pathname)
   const hideMobileNav = keyboardInset > 60 || writing
+  const fromRandom = Boolean((location.state as { fromRandom?: boolean } | null)?.fromRandom)
+  const randomDreamActive = fromRandom && /^\/dream\/[^/]+$/.test(location.pathname)
 
   return (
     <div className="ambient min-h-full md:grid md:grid-cols-[240px_1fr]">
@@ -73,7 +76,15 @@ export function Layout() {
       </main>
 
       {session && !writing && (
-        <DraftBubble userId={session.user.id} pathname={location.pathname} liftForNav={!hideMobileNav} />
+        <>
+          <RandomDreamBubble
+            userId={session.user.id}
+            pathname={location.pathname}
+            active={randomDreamActive}
+            liftForNav={!hideMobileNav}
+          />
+          <DraftBubble userId={session.user.id} pathname={location.pathname} liftForNav={!hideMobileNav} />
+        </>
       )}
 
       {/* Bottom nav (mobile) — hide while writing / keyboard open so it doesn’t cover the field */}
