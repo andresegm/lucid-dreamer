@@ -3,13 +3,13 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
 import { createDream, ensureTags, fetchDream, fetchTags, updateDream } from '@/lib/api'
-import { INDUCTION_DESCRIPTIONS, INDUCTION_METHODS, LUCIDITY_OPTIONS, type EntryType, type Lucidity, type Tag } from '@/lib/types'
+import { INDUCTION_DESCRIPTIONS, INDUCTION_METHODS, LUCIDITY_OPTIONS, type Dream, type EntryType, type Lucidity, type Tag } from '@/lib/types'
 import { todayISO, wordCount } from '@/lib/format'
 import { appendTranscript } from '@/lib/voice'
 import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
-import { draftKey, readDraft } from '@/lib/drafts'
+import { formDraftOpen, readEditDraft, readFormDraft, writeEditDraft, writeFormDraft, type DreamFormDraft } from '@/lib/drafts'
 import { Field, Segmented, Spinner, UseToday } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
@@ -33,7 +33,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { session } = useAuth()
-  const newDraft = draftKey(session!.user.id, 'new')
+  const uid = session!.user.id
   const { settings } = useSettings()
   // When editing an existing dream, never add tags silently — only suggest.
   const autoTagMode = settings.autoTag === 'auto' && mode === 'edit' ? 'suggest' : settings.autoTag
@@ -42,6 +42,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [autoAdded, setAutoAdded] = useState<string[]>([])
   const dismissed = useRef(new Set<string>()) // tags the user removed; never re-add them
   const [loading, setLoading] = useState(mode === 'edit')
+  const [editBase, setEditBase] = useState<{ id: string; form: FormState } | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldFocused, setFieldFocused] = useState(false)
@@ -50,12 +51,10 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   const [f, setF] = useState<FormState>(() => {
     if (mode === 'new') {
-      try {
-        const d = readDraft(session!.user.id, 'new')
-        if (d) return { ...JSON.parse(d), date: todayISO() } as FormState
-      } catch { /* ignore */ }
+      const d = readFormDraft(session!.user.id)
+      if (d && formDraftOpen(d)) return formFromDraft(d)
     }
-    return { date: todayISO(), title: '', description: '', lucidity: 'non-lucid', induction_method: '', induction_custom: '', induction_notes: '', entry_type: 'dream', favorite: false, tags: [] }
+    return emptyForm()
   })
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }))
 
@@ -63,28 +62,35 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
 
   useEffect(() => {
     if (mode !== 'edit' || !id) return
+    let cancelled = false
+    setLoading(true)
+    setEditBase(null)
     fetchDream(id)
       .then((d) => {
-        if (!d) return navigate('/dreams', { replace: true })
-        const std = INDUCTION_METHODS.includes(d.induction_method as never)
-        setF({
-          date: d.date, title: d.title, description: d.description, lucidity: d.lucidity,
-          induction_method: d.induction_method ? (std ? d.induction_method : 'other') : '',
-          induction_custom: d.induction_method && !std ? d.induction_method : '',
-          induction_notes: d.induction_notes ?? '', entry_type: d.entry_type, favorite: d.favorite,
-          tags: d.tags.map((t) => t.name),
-        })
+        if (cancelled) return
+        if (!d) {
+          writeEditDraft(uid, id, null)
+          return navigate('/dreams', { replace: true })
+        }
+        const loaded = dreamToForm(d)
+        const draft = readEditDraft(uid, id)
+        setEditBase({ id, form: loaded })
+        setF(draft && formDraftOpen(draft) ? formFromDraft(draft) : loaded)
       })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false))
-  }, [mode, id, navigate])
+      .catch((e) => { if (!cancelled) setError(String(e)) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [mode, id, navigate, uid])
 
   useEffect(() => {
-    if (mode !== 'new') return
-    const hasContent = f.title || f.description || f.tags.length
-    if (hasContent) localStorage.setItem(newDraft, JSON.stringify(f))
-    else localStorage.removeItem(newDraft)
-  }, [f, mode, newDraft])
+    if (mode === 'new') writeFormDraft(uid, formDraftOpen(f) ? f : null)
+  }, [f, mode, uid])
+
+  useEffect(() => {
+    if (mode !== 'edit' || !id || editBase?.id !== id) return
+    const dirty = formSnapshot(f) !== formSnapshot(editBase.form)
+    writeEditDraft(uid, id, dirty ? f : null)
+  }, [f, editBase, mode, id, uid])
 
   useEffect(() => {
     if (!loading) titleRef.current?.focus()
@@ -160,7 +166,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         tagIds: tags.map((t) => t.id),
       }
       const saved = mode === 'new' ? await createDream(input) : await updateDream(id!, input)
-      if (mode === 'new') localStorage.removeItem(newDraft)
+      if (mode === 'new') writeFormDraft(uid, null)
+      else if (id) writeEditDraft(uid, id, null)
       navigate(`/dream/${saved.id}`, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -368,4 +375,68 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
       />
     </form>
   )
+}
+
+function emptyForm(): FormState {
+  return {
+    date: todayISO(),
+    title: '',
+    description: '',
+    lucidity: 'non-lucid',
+    induction_method: '',
+    induction_custom: '',
+    induction_notes: '',
+    entry_type: 'dream',
+    favorite: false,
+    tags: [],
+  }
+}
+
+function formSnapshot(f: FormState): string {
+  return JSON.stringify({
+    date: f.date,
+    title: f.title,
+    description: f.description,
+    lucidity: f.lucidity,
+    induction_method: f.induction_method,
+    induction_custom: f.induction_custom,
+    induction_notes: f.induction_notes,
+    entry_type: f.entry_type,
+    favorite: f.favorite,
+    tags: f.tags,
+  })
+}
+
+function dreamToForm(d: Dream): FormState {
+  const std = INDUCTION_METHODS.includes(d.induction_method as never)
+  return {
+    date: d.date,
+    title: d.title,
+    description: d.description,
+    lucidity: d.lucidity,
+    induction_method: d.induction_method ? (std ? d.induction_method : 'other') : '',
+    induction_custom: d.induction_method && !std ? d.induction_method : '',
+    induction_notes: d.induction_notes ?? '',
+    entry_type: d.entry_type,
+    favorite: d.favorite,
+    tags: d.tags.map((t) => t.name),
+  }
+}
+
+function formFromDraft(draft: DreamFormDraft): FormState {
+  const lucidity: Lucidity = draft.lucidity === 'lucid' || draft.lucidity === 'semi-lucid' || draft.lucidity === 'non-lucid'
+    ? draft.lucidity
+    : 'non-lucid'
+  return {
+    date: draft.date || todayISO(),
+    title: draft.title ?? '',
+    description: draft.description ?? '',
+    lucidity,
+    induction_method: draft.induction_method ?? '',
+    induction_custom: draft.induction_custom ?? '',
+    induction_notes: draft.induction_notes ?? '',
+    entry_type: draft.entry_type === 'note' ? 'note' : 'dream',
+    favorite: !!draft.favorite,
+    tags: Array.isArray(draft.tags) ? draft.tags.filter((t): t is string => typeof t === 'string') : [],
+  }
 }

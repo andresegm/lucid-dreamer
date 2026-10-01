@@ -12,27 +12,26 @@ import { GrowingTextarea } from '@/components/GrowingTextarea'
 import { runSaveShortcut, WriteTray, WRITE_TRAY_RESERVE } from '@/components/WriteTray'
 import { UseToday } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { draftKey, readDraft } from '@/lib/drafts'
+import { readCapture, writeCapture, writeFormDraft } from '@/lib/drafts'
 
 export function CapturePage() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const uid = session!.user.id
-  const captureDraft = draftKey(uid, 'capture')
-  const [date, setDate] = useState(todayISO)
-  const [text, setText] = useState(() => readDraft(uid, 'capture') ?? '')
+  const [boot] = useState(() => readCapture(uid))
+  const [date, setDate] = useState(() => boot?.date || todayISO())
+  const [text, setText] = useState(() => boot?.text ?? '')
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>({})
+  const [emotionOn, setEmotionOn] = useState<Record<string, boolean>>(() => boot?.emotions ?? {})
   const [fieldFocused, setFieldFocused] = useState(false)
   const ta = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
   useEffect(() => {
-    if (text.trim()) localStorage.setItem(captureDraft, text)
-    else localStorage.removeItem(captureDraft)
-  }, [text, captureDraft])
+    writeCapture(uid, text.trim() ? { text, date, emotions: emotionOn } : null)
+  }, [text, date, emotionOn, uid])
 
   const words = useMemo(() => wordCount(text), [text])
   const suggestions = useMemo(() => suggestTags(text, allTags, []), [text, allTags])
@@ -77,7 +76,7 @@ export function CapturePage() {
         favorite: false,
         tagIds: tags.map((t) => t.id),
       })
-      localStorage.removeItem(captureDraft)
+      writeCapture(uid, null)
       navigate(`/dream/${saved.id}`, { replace: true, state: { captured: true } })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -87,20 +86,21 @@ export function CapturePage() {
   }
 
   function toFullForm() {
-    const draft = {
-      date,
-      title: titleFromDump(text),
-      description: text,
-      lucidity: 'non-lucid',
-      induction_method: '',
-      induction_custom: '',
-      induction_notes: '',
-      entry_type: 'dream',
-      favorite: false,
-      tags: saveNames,
+    if (text.trim()) {
+      writeFormDraft(uid, {
+        date,
+        title: titleFromDump(text),
+        description: text,
+        lucidity: 'non-lucid',
+        induction_method: '',
+        induction_custom: '',
+        induction_notes: '',
+        entry_type: 'dream',
+        favorite: false,
+        tags: saveNames,
+      })
+      writeCapture(uid, null)
     }
-    localStorage.setItem(draftKey(uid, 'new'), JSON.stringify(draft))
-    localStorage.removeItem(captureDraft)
     navigate('/new')
   }
 

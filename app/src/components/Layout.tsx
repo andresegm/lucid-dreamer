@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, ChartPie, GraduationCap, Home, LogOut, Moon, Plus, Settings, Tags } from 'lucide-react'
 import clsx from 'clsx'
+import { DraftBubble } from '@/components/DraftBubble'
 import { useAuth } from '@/lib/auth'
 import { useKeyboardInset } from '@/lib/useKeyboardInset'
 
@@ -21,7 +22,7 @@ const MOBILE = [
 ]
 
 export function Layout() {
-  const { signOut } = useAuth()
+  const { session, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const keyboardInset = useKeyboardInset()
@@ -70,6 +71,10 @@ export function Layout() {
       >
         <Outlet />
       </main>
+
+      {session && !writing && (
+        <DraftBubble userId={session.user.id} pathname={location.pathname} liftForNav={!hideMobileNav} />
+      )}
 
       {/* Bottom nav (mobile) — hide while writing / keyboard open so it doesn’t cover the field */}
       {!hideMobileNav && (
