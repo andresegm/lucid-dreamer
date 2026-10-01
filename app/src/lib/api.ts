@@ -85,6 +85,30 @@ export async function fetchDream(id: string): Promise<Dream | null> {
   return data ? mapDream(data) : null
 }
 
+/**
+ * Uniform random dream: each of the N dreams has probability 1/N.
+ * Two round-trips (count + one-row range) — never loads the full journal.
+ */
+export async function fetchRandomDream(): Promise<Dream | null> {
+  const { count, error: cErr } = await supabase
+    .from('dreams')
+    .select('id', { count: 'exact', head: true })
+    .eq('entry_type', 'dream')
+  if (cErr) throw cErr
+  if (!count) return null
+
+  const offset = Math.floor(Math.random() * count)
+  const { data, error } = await supabase
+    .from('dreams')
+    .select(DREAM_SELECT)
+    .eq('entry_type', 'dream')
+    .order('id', { ascending: true })
+    .range(offset, offset)
+    .maybeSingle()
+  if (error) throw error
+  return data ? mapDream(data) : null
+}
+
 export async function fetchAllLite(): Promise<DreamLite[]> {
   const { data, error } = await supabase
     .from('dreams')
