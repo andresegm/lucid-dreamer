@@ -39,7 +39,7 @@ The live project already has tables, RLS, and Auth. Only do this for a **new** S
 1. Run in the SQL Editor, in order: `per-user.sql`, `lockdown.sql`, `profiles.sql`, `voice.sql`
 2. **Authentication → Email** — enable Email, Confirm email, and signup
 3. **URL Configuration** — Site URL and redirects = your app origin
-4. Deploy `app/` as a static SPA (Vercel: root `app`, `npm run build`, output `dist`) with the two `VITE_*` variables
+4. Deploy `app/` as a static SPA (Vercel: root `app`, `npm run build`, output `dist`) with the two `VITE_*` variables (plus optional `VITE_SENTRY_DSN` for error reports)
 
 Voice is optional and billed to your OpenAI key (~$0.006/min). From the repo root, after `npx supabase login` and linking the project:
 

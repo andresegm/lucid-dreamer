@@ -16,6 +16,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { CapturePage } from '@/pages/CapturePage'
 import { LearnPage } from '@/pages/LearnPage'
 import { Spinner } from '@/components/ui'
+import { ErrorBoundary } from '@/lib/monitoring'
 
 function Gate() {
   const { session, loading, recovery } = useAuth()
@@ -56,6 +57,18 @@ function Gate() {
   )
 }
 
+function CrashScreen() {
+  return (
+    <div className="min-h-full flex items-center justify-center p-6">
+      <div className="card max-w-md">
+        <div className="font-semibold mb-1">Something went wrong</div>
+        <p className="text-sm text-muted">Your journal is safe. Reload to pick up where you left off.</p>
+        <button className="btn btn-primary mt-4" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    </div>
+  )
+}
+
 function ConfigError({ message }: { message: string }) {
   return (
     <div className="min-h-full flex items-center justify-center p-6">
@@ -76,11 +89,13 @@ export default function App() {
       {configError ? (
         <ConfigError message={configError} />
       ) : (
-        <AuthProvider>
-          <BrowserRouter>
-            <Gate />
-          </BrowserRouter>
-        </AuthProvider>
+        <ErrorBoundary fallback={<CrashScreen />}>
+          <AuthProvider>
+            <BrowserRouter>
+              <Gate />
+            </BrowserRouter>
+          </AuthProvider>
+        </ErrorBoundary>
       )}
     </SettingsProvider>
   )
