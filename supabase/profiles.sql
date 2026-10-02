@@ -18,8 +18,8 @@ grant select, insert, update, delete on table public.profiles to authenticated;
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles
   for all to authenticated
-  using (id = auth.uid())
-  with check (id = auth.uid());
+  using (id = (select auth.uid()))
+  with check (id = (select auth.uid()));
 
 insert into public.profiles (id)
 select id from auth.users
@@ -41,3 +41,5 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+revoke all on function public.handle_new_user() from public, anon, authenticated;

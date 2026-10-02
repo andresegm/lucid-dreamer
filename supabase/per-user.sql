@@ -22,7 +22,7 @@ create unique index if not exists tags_user_name_unique_ci on public.tags (user_
 create index if not exists dreams_user_date_idx on public.dreams (user_id, date desc, created_at desc);
 
 create or replace function public.set_row_owner()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = '' as $$
 begin
   new.user_id := auth.uid();
   return new;
@@ -47,20 +47,20 @@ drop policy if exists "own dream_tags"              on public.dream_tags;
 
 create policy "own dreams" on public.dreams
   for all to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 create policy "own tags" on public.tags
   for all to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 create policy "own dream_tags" on public.dream_tags
   for all to authenticated
   using (
-    exists (select 1 from public.dreams d where d.id = dream_id and d.user_id = auth.uid())
+    exists (select 1 from public.dreams d where d.id = dream_id and d.user_id = (select auth.uid()))
   )
   with check (
-    exists (select 1 from public.dreams d where d.id = dream_id and d.user_id = auth.uid())
-    and exists (select 1 from public.tags t where t.id = tag_id and t.user_id = auth.uid())
+    exists (select 1 from public.dreams d where d.id = dream_id and d.user_id = (select auth.uid()))
+    and exists (select 1 from public.tags t where t.id = tag_id and t.user_id = (select auth.uid()))
   );

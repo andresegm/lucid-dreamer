@@ -36,7 +36,7 @@ npm run dev                 # http://localhost:5173
 
 The live project already has tables, RLS, and Auth. Only do this for a **new** Supabase project.
 
-1. Run in the SQL Editor, in order: `per-user.sql`, `lockdown.sql`, `profiles.sql`, `voice.sql`
+1. Run in the SQL Editor, in order: `per-user.sql`, `lockdown.sql`, `profiles.sql`, `voice.sql`, `hardening.sql`
 2. **Authentication → Email** — enable Email, Confirm email, and signup
 3. **URL Configuration** — Site URL and redirects = your app origin
 4. Deploy `app/` as a static SPA (Vercel: root `app`, `npm run build`, output `dist`) with the two `VITE_*` variables (plus optional `VITE_SENTRY_DSN` for error reports)

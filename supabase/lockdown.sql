@@ -41,7 +41,7 @@ create or replace view public.tags_with_counts
 grant select on table public.tags_with_counts to authenticated;
 
 create or replace function public.set_row_owner()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = '' as $$
 begin
   new.user_id := auth.uid();
   if new.user_id is null then

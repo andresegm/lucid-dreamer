@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
   )
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return json({ error: 'Unauthorized' }, 401)
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  )
 
   const key = Deno.env.get('OPENAI_API_KEY')
   if (!key) return json({ error: 'Voice is not set up yet. Add OPENAI_API_KEY as a Supabase secret.' }, 503)
@@ -41,7 +45,7 @@ Deno.serve(async (req) => {
   if (!(audio instanceof File) || audio.size === 0) return json({ error: 'Missing audio' }, 400)
   if (audio.size > 24 * 1024 * 1024) return json({ error: 'Recording is too long' }, 413)
 
-  const { data: used, error: claimErr } = await supabase.rpc('claim_voice_use')
+  const { data: used, error: claimErr } = await admin.rpc('claim_voice_use', { p_user: user.id })
   if (claimErr) return json({ error: 'Could not check the daily voice limit.' }, 500)
   if (used === -1) return json({ error: LIMIT_MSG, remaining: 0, limit: DAILY_LIMIT }, 429)
 
@@ -55,7 +59,7 @@ Deno.serve(async (req) => {
     body,
   })
   if (!r.ok) {
-    await supabase.rpc('release_voice_use')
+    await admin.rpc('release_voice_use', { p_user: user.id })
     return json({ error: 'Transcription failed. Try again in a moment.' }, 502)
   }
   const data = await r.json() as { text?: string }
