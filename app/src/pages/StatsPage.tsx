@@ -7,7 +7,7 @@ import { EMOTIONS } from '@/lib/emotions'
 import type { DreamLite, Lucidity } from '@/lib/types'
 import { computeStats, trendSeries, type Granularity, type Range, type TagPair } from '@/lib/stats'
 import { useSettings, type StatsPanel } from '@/lib/settings'
-import { fmtDate } from '@/lib/format'
+import { fmtDate, fmtDateRange } from '@/lib/format'
 import { EmotionRadar, HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
@@ -51,6 +51,14 @@ export function StatsPage() {
     )
 
   const { byLucidity, onlyDreams, shown, lucidCount, induction, streaks, weekday, topTags, pairs, perWeek, bestMonth, favorites } = stats
+  const longestSub =
+    streaks.longestStart && streaks.longestEnd
+      ? fmtDateRange(streaks.longestStart, streaks.longestEnd)
+      : '—'
+  const dreamsSub = [
+    `${perWeek.toFixed(1)} / week`,
+    bestMonth ? `peak ${fmtDate(bestMonth[0] + '-01', 'MMM yyyy')}` : null,
+  ].filter(Boolean).join(' · ')
   const total = onlyDreams.length
   const lucidPct = total ? Math.round((lucidCount / total) * 100) : 0
   const emotionCounts = EMOTIONS.map((e) => ({
@@ -122,10 +130,10 @@ export function StatsPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--gap)] mb-4">
-        <Kpi icon={<Moon size={16} />} label="Dreams" value={total.toLocaleString()} sub={`${perWeek.toFixed(1)} / week`} />
+        <Kpi icon={<Moon size={16} />} label="Dreams" value={total.toLocaleString()} sub={dreamsSub} />
         <Kpi icon={<Sparkles size={16} />} label="Lucid" value={lucidCount.toLocaleString()} sub={`${lucidPct}% of dreams`} accent="var(--lucid)" />
         <Kpi icon={<Flame size={16} />} label="Current streak" value={`${streaks.current}d`} sub={streaks.lastEntry ? `last: ${fmtDate(streaks.lastEntry, 'MMM d')}` : '—'} accent="#fb7185" />
-        <Kpi icon={<Trophy size={16} />} label="Longest streak" value={`${streaks.longest}d`} sub={bestMonth ? `best month: ${fmtDate(bestMonth[0] + '-01', 'MMM yyyy')} (${bestMonth[1]})` : '—'} accent="#34d399" />
+        <Kpi icon={<Trophy size={16} />} label="Longest streak" value={`${streaks.longest}d`} sub={longestSub} accent="#34d399" />
       </div>
 
       <div className="mb-4">

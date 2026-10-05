@@ -1,4 +1,5 @@
 import { differenceInCalendarDays, format, parseISO, startOfMonth, startOfYear, subDays } from 'date-fns'
+import { parseLocalISO } from './format'
 import type { DreamLite, Lucidity } from './types'
 
 export type Range = 'all' | '1y' | '6m' | '3m' | '30d' | '7d'
@@ -22,7 +23,15 @@ export interface StatsInput {
   series: Record<Lucidity, boolean>
 }
 
-export interface Streaks { current: number; longest: number; lastEntry: string | null }
+export interface Streaks {
+  current: number
+  longest: number
+  lastEntry: string | null
+  /** Inclusive start of the longest consecutive run (most recent if tied). */
+  longestStart: string | null
+  /** Inclusive end of the longest consecutive run. */
+  longestEnd: string | null
+}
 
 /** One bucket per calendar day: how many entries, and how many were lucid or semi-lucid. */
 export function recallByDate(dreams: DreamLite[]): Map<string, { count: number; lucid: number }> {
@@ -42,26 +51,48 @@ export function heatLevel(count: number): number {
   return count >= 3 ? 3 : count
 }
 
+function localCalendarDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
 export function computeStreaks(dates: string[], today = new Date()): Streaks {
+  const empty: Streaks = { current: 0, longest: 0, lastEntry: null, longestStart: null, longestEnd: null }
   const days = Array.from(new Set(dates)).sort()
-  if (!days.length) return { current: 0, longest: 0, lastEntry: null }
-  let longest = 1, run = 1
+  if (!days.length) return empty
+
+  let longest = 1
+  let run = 1
+  let runStart = 0
+  let longestStart = days[0]
+  let longestEnd = days[0]
+
   for (let i = 1; i < days.length; i++) {
-    const gap = differenceInCalendarDays(parseISO(days[i]), parseISO(days[i - 1]))
-    run = gap === 1 ? run + 1 : 1
-    longest = Math.max(longest, run)
+    const gap = differenceInCalendarDays(parseLocalISO(days[i]), parseLocalISO(days[i - 1]))
+    if (gap === 1) {
+      run++
+    } else {
+      run = 1
+      runStart = i
+    }
+    // Prefer the most recent run when lengths tie (e.g. current streak matches a past best).
+    if (run >= longest) {
+      longest = run
+      longestStart = days[runStart]
+      longestEnd = days[i]
+    }
   }
-  const last = parseISO(days[days.length - 1])
-  const sinceLast = differenceInCalendarDays(today, last)
+
+  const last = parseLocalISO(days[days.length - 1])
+  const sinceLast = differenceInCalendarDays(localCalendarDay(today), last)
   let current = 0
   if (sinceLast <= 1) {
     current = 1
     for (let i = days.length - 1; i > 0; i--) {
-      if (differenceInCalendarDays(parseISO(days[i]), parseISO(days[i - 1])) === 1) current++
+      if (differenceInCalendarDays(parseLocalISO(days[i]), parseLocalISO(days[i - 1])) === 1) current++
       else break
     }
   }
-  return { current, longest, lastEntry: days[days.length - 1] }
+  return { current, longest, lastEntry: days[days.length - 1], longestStart, longestEnd }
 }
 
 export function computeStats({ dreams, range, includeNotes, series }: StatsInput) {

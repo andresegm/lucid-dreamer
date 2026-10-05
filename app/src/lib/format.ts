@@ -1,9 +1,29 @@
 import { format, parseISO, isValid } from 'date-fns'
 import type { Lucidity } from './types'
 
+/** Calendar date (`YYYY-MM-DD`) as local midnight — avoids UTC day shifts from `parseISO`. */
+export function parseLocalISO(iso: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3])
+  return parseISO(iso)
+}
+
 export function fmtDate(iso: string, pattern = 'EEE, MMM d, yyyy'): string {
-  const d = parseISO(iso)
+  const d = parseLocalISO(iso)
   return isValid(d) ? format(d, pattern) : iso
+}
+
+/** Inclusive streak / span label, compact when start and end share a month or year. */
+export function fmtDateRange(start: string, end: string): string {
+  if (start === end) return fmtDate(start, 'MMM d, yyyy')
+  const a = parseLocalISO(start)
+  const b = parseLocalISO(end)
+  if (!isValid(a) || !isValid(b)) return `${start} – ${end}`
+  if (a.getFullYear() === b.getFullYear()) {
+    if (a.getMonth() === b.getMonth()) return `${format(a, 'MMM d')}–${format(b, 'd, yyyy')}`
+    return `${format(a, 'MMM d')} – ${format(b, 'MMM d, yyyy')}`
+  }
+  return `${format(a, 'MMM d, yyyy')} – ${format(b, 'MMM d, yyyy')}`
 }
 
 export function todayISO(): string {
