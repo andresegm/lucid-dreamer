@@ -76,7 +76,7 @@ export function Kpi({ icon, label, value, sub, accent }: { icon: ReactNode; labe
         {label}
       </div>
       <div className="text-2xl font-semibold tabular-nums mt-2 leading-none tracking-tight">{value}</div>
-      {sub && <div className="text-xs text-faint mt-1.5 truncate">{sub}</div>}
+      {sub && <div className="text-xs text-faint mt-1.5 leading-snug break-words" title={sub}>{sub}</div>}
     </div>
   )
 }
