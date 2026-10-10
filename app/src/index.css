@@ -206,5 +206,5 @@ textarea.input { resize: vertical; line-height: 1.6; }
   border-radius: 8px; padding: 6px 8px; font-size: 11px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
 
-input[type="date"].input { color-scheme: dark; }
-:root[data-theme="light"] input[type="date"].input { color-scheme: light; }
+input[type="date"].input, input[type="time"].input { color-scheme: dark; }
+:root[data-theme="light"] input[type="date"].input, :root[data-theme="light"] input[type="time"].input { color-scheme: light; }

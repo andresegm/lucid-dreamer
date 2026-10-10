@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
-import { BookOpen, Check, Dices, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
+import { BedDouble, BookOpen, Check, Dices, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite, fetchDreams, fetchRandomDream } from '@/lib/api'
 import { toggleListFavorite } from '@/lib/favorite'
 import { fetchVoiceQuota, VOICE_DAILY_LIMIT } from '@/lib/voice'
 import { computeStreaks, heatLevel, recallByDate } from '@/lib/stats'
 import { useSettings } from '@/lib/settings'
+import { SLEEP_CHECKLIST, checklistDone, fetchSleepLog, fmtMinutes, timeInBed, type SleepLog } from '@/lib/sleep'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
 import { fmtDate, todayISO } from '@/lib/format'
 import { DreamNightList } from '@/components/DreamCard'
@@ -126,6 +127,8 @@ export function DashboardPage() {
       <TonightCard />
 
       <MorningCue ctx={cue} />
+
+      <SleepCard />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--gap)] mb-5">
         <Kpi icon={<Flame size={16} />} label="Streak" value={`${kpis.streak}d`} sub={kpis.streak ? 'keep the mornings going' : 'write tonight to start'} accent="#fb7185" />
@@ -249,6 +252,47 @@ function TonightCard() {
         )}
       </div>
     </div>
+  )
+}
+
+function SleepCard() {
+  const today = todayISO()
+  const [log, setLog] = useState<SleepLog | null | undefined>(undefined)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchSleepLog(today)
+      .then((row) => { if (!cancelled) setLog(row) })
+      .catch(() => { if (!cancelled) setLog(undefined) })
+    return () => { cancelled = true }
+  }, [today])
+
+  if (log === undefined) return null
+
+  if (!log) {
+    return (
+      <Link to="/sleep" className="card card-hover mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <BedDouble size={18} className="text-accent shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <div className="font-semibold">How did you sleep?</div>
+            <p className="text-xs text-muted mt-0.5">Bed time, wake-up, and today’s checklist. Under a minute.</p>
+          </div>
+        </div>
+        <span className="btn shrink-0">Log last night</span>
+      </Link>
+    )
+  }
+
+  const inBed = timeInBed(log.bed_time, log.wake_time)
+  return (
+    <Link to="/sleep" className="card card-hover mb-4 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <span className="flex items-center gap-2 font-semibold"><BedDouble size={18} className="text-accent" /> Last night</span>
+      <span className="text-sm tabular-nums">{fmtMinutes(inBed)} in bed</span>
+      {log.rested != null && <span className="text-sm text-muted">rested {log.rested}/5</span>}
+      <span className="text-sm text-muted tabular-nums">{checklistDone(log)}/{SLEEP_CHECKLIST.length} habits</span>
+      <span className="text-xs text-muted ml-auto">Edit</span>
+    </Link>
   )
 }
 

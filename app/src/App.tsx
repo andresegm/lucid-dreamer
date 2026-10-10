@@ -15,6 +15,7 @@ import { TagPage } from '@/pages/TagPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { CapturePage } from '@/pages/CapturePage'
 import { LearnPage } from '@/pages/LearnPage'
+import { SleepPage } from '@/pages/SleepPage'
 import { Spinner } from '@/components/ui'
 import { ErrorBoundary } from '@/lib/monitoring'
 
@@ -50,6 +51,7 @@ function Gate() {
         <Route path="tag/:id" element={<TagPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="learn" element={<LearnPage />} />
+        <Route path="sleep" element={<SleepPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
       <Route path="/login" element={<Navigate to="/" replace />} />
