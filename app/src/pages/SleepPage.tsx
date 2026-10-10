@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlarmClock, BedDouble, Check, Moon, Sun, Trash2 } from 'lucide-react'
+import { AlarmClock, BedDouble, Check, Moon, Pencil, Sun, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import {
   SLEEP_CHECKLIST,
@@ -32,7 +32,7 @@ export function SleepPage() {
   const [saved, setSaved] = useState<SleepLog | null>(null)
   const [history, setHistory] = useState<SleepLog[] | null>(null)
   const [saving, setSaving] = useState(false)
-  const [justSaved, setJustSaved] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
   const loadHistory = useCallback(() => {
@@ -44,12 +44,12 @@ export function SleepPage() {
   useEffect(() => {
     let cancelled = false
     setLog(null)
-    setJustSaved(false)
     fetchSleepLog(date)
       .then((row) => {
         if (cancelled) return
         setLog(row ?? emptySleepLog(date))
         setSaved(row)
+        setEditing(!row)
       })
       .catch((e) => { if (!cancelled) setError(e) })
     return () => { cancelled = true }
@@ -61,7 +61,6 @@ export function SleepPage() {
   }, [log, saved, date])
 
   function set<K extends keyof SleepLog>(key: K, value: SleepLog[K]) {
-    setJustSaved(false)
     setLog((l) => (l ? { ...l, [key]: value } : l))
   }
 
@@ -82,7 +81,7 @@ export function SleepPage() {
       const row = await saveSleepLog(log)
       setLog(row)
       setSaved(row)
-      setJustSaved(true)
+      setEditing(false)
       loadHistory()
     } catch (e) {
       setError(e)
@@ -97,6 +96,7 @@ export function SleepPage() {
       await deleteSleepLog(date)
       setLog(emptySleepLog(date))
       setSaved(null)
+      setEditing(true)
       loadHistory()
     } catch (e) {
       setError(e)
@@ -113,9 +113,11 @@ export function SleepPage() {
         title="Sleep"
         subtitle="A short log each morning. Patterns show up after a week or two."
         actions={
-          <button type="button" className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save()}>
-            {saving ? <Spinner /> : <Check size={16} />} {justSaved && !dirty ? 'Saved' : 'Save'}
-          </button>
+          editing && log ? (
+            <button type="button" className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save()}>
+              {saving ? <Spinner /> : <Check size={16} />} Save
+            </button>
+          ) : undefined
         }
       />
 
@@ -142,11 +144,12 @@ export function SleepPage() {
           <input type="date" className="input py-1.5 w-auto" value={date} max={todayISO()} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </label>
         <UseToday date={date} onClick={() => setDate(todayISO())} />
-        {saved && <span className="text-xs text-faint ml-auto">Logged</span>}
       </div>
 
       {!log ? (
         <div className="flex items-center gap-2 text-muted"><Spinner /> Loading…</div>
+      ) : !editing && saved ? (
+        <LoggedSummary log={saved} onEdit={() => setEditing(true)} />
       ) : (
         <div className="grid gap-4">
           <section className="card">
@@ -243,8 +246,13 @@ export function SleepPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save()}>
-              {saving ? <Spinner /> : <Check size={16} />} {justSaved && !dirty ? 'Saved' : 'Save'}
+              {saving ? <Spinner /> : <Check size={16} />} Save
             </button>
+            {saved && (
+              <button type="button" className="btn" disabled={saving} onClick={() => { setLog(saved); setEditing(false) }}>
+                Cancel
+              </button>
+            )}
             {saved && (
               <button type="button" className="btn btn-ghost btn-danger ml-auto" onClick={() => void remove()}>
                 <Trash2 size={16} /> Delete log
@@ -286,6 +294,52 @@ export function SleepPage() {
         </section>
       )}
     </div>
+  )
+}
+
+function LoggedSummary({ log, onEdit }: { log: SleepLog; onEdit: () => void }) {
+  const inBed = timeInBed(log.bed_time, log.wake_time)
+  const done = checklistDone(log)
+  const stats = [
+    { label: 'Bed → wake', value: `${log.bed_time ?? '—'} → ${log.wake_time ?? '—'}` },
+    { label: 'Time in bed', value: fmtMinutes(inBed) },
+    { label: 'Sleep (est.)', value: fmtMinutes(log.total_sleep_min) },
+    { label: 'Garmin REM', value: fmtMinutes(log.rem_min) },
+    { label: 'Awakenings', value: log.awakenings == null ? '—' : String(log.awakenings) },
+    { label: 'Rested', value: log.rested == null ? '—' : `${log.rested}/5 · ${RESTED_LABELS[log.rested]}` },
+  ]
+  return (
+    <section className="card fade-in" style={{ borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)' }}>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 className="font-semibold flex items-center gap-2"><Check size={16} className="text-accent" /> Logged</h2>
+          <p className="text-xs text-muted mt-0.5">
+            {log.alarm == null ? '' : log.alarm ? 'Alarm · ' : 'No alarm · '}
+            {log.wbtb == null ? '' : log.wbtb ? 'WBTB · ' : 'No WBTB · '}
+            {done} of {SLEEP_CHECKLIST.length} habits
+          </p>
+        </div>
+        <button type="button" className="btn shrink-0" onClick={onEdit}>
+          <Pencil size={14} /> Edit
+        </button>
+      </div>
+      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+        {stats.map((s) => (
+          <div key={s.label} className="min-w-0">
+            <dt className="text-[11px] uppercase tracking-wide text-faint">{s.label}</dt>
+            <dd className="text-sm font-medium tabular-nums truncate">{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {done > 0 && (
+        <ul className="flex flex-wrap gap-1.5 mt-4">
+          {SLEEP_CHECKLIST.filter((c) => log.checklist[c.key]).map((c) => (
+            <li key={c.key} className="chip"><Check size={11} /> {c.label}</li>
+          ))}
+        </ul>
+      )}
+      {log.notes && <p className="text-sm text-muted mt-4 whitespace-pre-wrap break-words">{log.notes}</p>}
+    </section>
   )
 }
 
