@@ -17,8 +17,8 @@ React + Vite + Tailwind in `app/`. Supabase for Postgres, Auth, and an optional 
 - **Sleep** — bed and wake times, alarm, a daily sleep-hygiene checklist, WBTB, awakenings, restedness, Garmin REM
 - **Stats** — Recall, Lucid, Patterns (emotion radar, top tags, pairs)
 - **Learn** — lucid dreaming basics, sleep stages, recall, journaling, induction methods
-- **Tags** — rename, merge, color
-- **Settings** — appearance (synced to your profile), auto-tag, auto-lock, emotion-scan beta, export and import
+- **Tags** — rename, merge, color, and tag every entry containing a word or phrase
+- **Settings** — appearance (synced to your profile), auto-tag, auto-lock, locked tags, emotion-scan beta, export and import
 
 ## Run locally
 
@@ -37,7 +37,7 @@ npm run dev                 # http://localhost:5173
 
 The live project already has tables, RLS, and Auth. Only do this for a **new** Supabase project.
 
-1. Run in the SQL Editor, in order: `per-user.sql`, `lockdown.sql`, `profiles.sql`, `voice.sql`, `hardening.sql`, `sleep.sql`
+1. Run in the SQL Editor, in order: `per-user.sql`, `lockdown.sql`, `profiles.sql`, `voice.sql`, `hardening.sql`, `sleep.sql`, `tag-lock.sql`
 2. **Authentication → Email** — enable Email, Confirm email, and signup
 3. **URL Configuration** — Site URL and redirects = your app origin
 4. Deploy `app/` as a static SPA (Vercel: root `app`, `npm run build`, output `dist`) with the two `VITE_*` variables (plus optional `VITE_SENTRY_DSN` for error reports)
@@ -54,6 +54,7 @@ npx supabase functions deploy transcribe
 RLS on every table; each row is limited to `auth.uid()`.
 
 - `dreams` — date, title, description, lucidity, induction, entry type, favorite
-- `tags` / `dream_tags` — names unique per user
+- `tags` / `dream_tags` — names unique per user; a `locked` tag hides itself and its dreams
+- `visible_dreams` — dreams minus any with a locked tag; the app reads dreams only through this view
 - `profiles` — settings and Stats filters
 - `voice_daily` — recordings used today (UTC), incremented only by `claim_voice_use()`

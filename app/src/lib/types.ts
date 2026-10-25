@@ -26,6 +26,7 @@ export interface Tag {
   name: string
   color: string | null
   dream_count?: number
+  locked?: boolean
 }
 
 export interface Dream {

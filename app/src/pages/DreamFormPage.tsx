@@ -59,7 +59,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   })
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }))
 
-  useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
+  useEffect(() => { fetchTags(true).then(setAllTags).catch(() => {}) }, [])
+  const pickerTags = useMemo(() => allTags.filter((t) => !t.locked), [allTags])
 
   useEffect(() => {
     if (mode !== 'edit' || !id) return
@@ -170,7 +171,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
       const saved = mode === 'new' ? await createDream(input) : await updateDream(id!, input)
       if (mode === 'new') writeFormDraft(uid, null)
       else if (id) writeEditDraft(uid, id, null)
-      navigate(`/dream/${saved.id}`, { replace: true })
+      // A locked tag hides the dream as soon as it's saved
+      navigate(saved ? `/dream/${saved.id}` : '/dreams', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -328,7 +330,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
               }}
             />
           </div>
-          <TagPicker all={allTags} selected={f.tags} onChange={onTagsChange} />
+          <TagPicker all={pickerTags} selected={f.tags} onChange={onTagsChange} />
           {autoAdded.length > 0 && (
             <div className="flex items-center gap-1.5 mt-2 text-xs text-muted fade-in">
               <Sparkles size={12} className="text-accent shrink-0" />

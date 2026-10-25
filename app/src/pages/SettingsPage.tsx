@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Check, Download, LogOut, RotateCcw, Smartphone, Upload } from 'lucide-react'
+import { Check, Download, Lock, LockOpen, LogOut, RotateCcw, Smartphone, Upload } from 'lucide-react'
 import clsx from 'clsx'
 import { ACCENT_PRESETS, useSettings, type AutoTagMode, type Density, type Theme } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
-import { fetchAllFull, importEntries } from '@/lib/api'
+import { fetchAllFull, fetchTags, importEntries, setTagLocked } from '@/lib/api'
 import { parseImport } from '@/lib/impex'
-import type { SortOrder } from '@/lib/types'
+import type { SortOrder, Tag } from '@/lib/types'
 import { Field, PageHeader, Segmented, Spinner, Switch } from '@/components/ui'
 import { EmotionScan } from '@/components/EmotionScan'
 import { fmtDate } from '@/lib/format'
@@ -147,15 +147,18 @@ export function SettingsPage() {
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Privacy</h2>
-        <p className="text-xs text-muted mb-4">Automatically lock the journal after a period of inactivity.</p>
+        <p className="text-xs text-muted mb-4">Lock the journal after a period of inactivity, and keep private tags out of sight.</p>
         <Field label="Auto-lock">
           <Segmented<string> value={String(settings.lockTimeoutMin)} onChange={(v) => update({ lockTimeoutMin: Number(v) })} options={[{ value: '0', label: 'Never' }, { value: '5', label: '5 min' }, { value: '15', label: '15 min' }, { value: '60', label: '1 hour' }]} />
+        </Field>
+        <Field label="Locked tags" hint="A locked tag disappears from Tags and Stats, and every dream that carries it is hidden from the list, search, filters, Home, and export. Unlock it here to bring them back." className="mt-5">
+          <LockedTags />
         </Field>
       </section>
 
       <section className="card mb-4">
         <h2 className="font-semibold mb-1">Export</h2>
-        <p className="text-xs text-muted mb-4">Download a full copy of your journal any time.</p>
+        <p className="text-xs text-muted mb-4">Download a full copy of your journal any time. Dreams under a locked tag are left out.</p>
         <div className="flex flex-wrap gap-2">
           {(['txt', 'json', 'csv'] as const).map((k) => (
             <button key={k} className="btn" disabled={!!exporting} onClick={() => void exportAs(k)}>
@@ -191,6 +194,51 @@ export function SettingsPage() {
         <button className="btn" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
       </div>
     </div>
+  )
+}
+
+function LockedTags() {
+  const [tags, setTags] = useState<Tag[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+
+  useEffect(() => { fetchTags(true).then(setTags).catch((e) => setError(String(e))) }, [])
+
+  async function toggle(t: Tag) {
+    const locked = !t.locked
+    setError(null)
+    setTags((cur) => cur?.map((x) => (x.id === t.id ? { ...x, locked } : x)) ?? null)
+    try {
+      await setTagLocked(t.id, locked)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setTags((cur) => cur?.map((x) => (x.id === t.id ? { ...x, locked: !locked } : x)) ?? null)
+    }
+  }
+
+  if (!tags) return error ? <p className="text-sm text-danger">{error}</p> : <Spinner />
+  if (!tags.length) return <p className="text-sm text-muted">No tags yet.</p>
+
+  const term = q.trim().toLowerCase()
+  const list = tags
+    .filter((t) => !term || t.name.toLowerCase().includes(term))
+    .sort((a, b) => Number(!!b.locked) - Number(!!a.locked) || a.name.localeCompare(b.name))
+  const lockedCount = tags.filter((t) => t.locked).length
+
+  return (
+    <>
+      <p className="text-xs text-muted mb-2">{lockedCount ? `${lockedCount} locked. ` : ''}Tap a tag to lock or unlock it.</p>
+      {tags.length > 12 && <input className="input mb-3" placeholder="Find a tag…" value={q} onChange={(e) => setQ(e.target.value)} />}
+      <div className="flex flex-wrap gap-1.5 max-h-64 overflow-auto">
+        {list.map((t) => (
+          <button key={t.id} type="button" className={clsx('chip chip-btn', t.locked && 'chip-active')} aria-pressed={!!t.locked} onClick={() => void toggle(t)}>
+            {t.locked ? <Lock size={12} /> : <LockOpen size={12} className="text-faint" />}
+            {t.name}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-sm text-danger mt-2">{error}</p>}
+    </>
   )
 }
 

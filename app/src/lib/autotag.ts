@@ -9,6 +9,7 @@ import { INDUCTION_METHODS, type Tag } from './types'
  *     "flew" → flying, "my brother" → family, "RC" → reality check, …
  *
  * Acronym rules are case-sensitive so "RC"/"SP"/"FA" only match as abbreviations.
+ * Locked tags are never suggested, so writing about them can't hide a new dream.
  */
 interface Rule { tag: string; pattern: RegExp }
 
@@ -62,12 +63,12 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export interface Suggestion { name: string; exists: boolean }
 
 /**
- * Returns tag names implied by `text`, excluding ones already in `selected`.
+ * Returns tag names implied by `text`, excluding ones already in `selected` and any locked tag.
  * Existing tag names come first (most used first), then keyword-rule tags that don't exist yet.
  */
 export function suggestTags(text: string, allTags: Tag[], selected: string[]): Suggestion[] {
   if (!text.trim()) return []
-  const taken = new Set(selected.map((s) => s.toLowerCase()))
+  const taken = new Set([...selected, ...allTags.filter((t) => t.locked).map((t) => t.name)].map((s) => s.toLowerCase()))
   const byLower = new Map(allTags.map((t) => [t.name.toLowerCase(), t]))
   const out = new Map<string, Suggestion>()
 
@@ -87,4 +88,14 @@ export function suggestTags(text: string, allTags: Tag[], selected: string[]): S
   for (const r of KEYWORD_RULES) if (r.pattern.test(text)) add(r.tag)
 
   return [...out.values()].sort((a, b) => Number(b.exists) - Number(a.exists))
+}
+
+/**
+ * Whole-word, case-insensitive match for a word or phrase: "red car" matches "Red  car." but not
+ * "red sports car" or "redcar". Letters and digits in any script count as word characters.
+ */
+export function phrasePattern(phrase: string): RegExp | null {
+  const words = phrase.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return null
+  return new RegExp(`(?<![\\p{L}\\p{N}])${words.map(escapeRe).join('\\s+')}(?![\\p{L}\\p{N}])`, 'iu')
 }

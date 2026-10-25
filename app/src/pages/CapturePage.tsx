@@ -29,7 +29,7 @@ export function CapturePage() {
   const ta = useRef<HTMLTextAreaElement>(null)
   const discarded = useRef(false)
 
-  useEffect(() => { fetchTags().then(setAllTags).catch(() => {}) }, [])
+  useEffect(() => { fetchTags(true).then(setAllTags).catch(() => {}) }, [])
   useEffect(() => {
     if (discarded.current) return
     writeCapture(uid, text.trim() ? { text, date, emotions: emotionOn } : null)
@@ -79,7 +79,8 @@ export function CapturePage() {
         tagIds: tags.map((t) => t.id),
       })
       writeCapture(uid, null)
-      navigate(`/dream/${saved.id}`, { replace: true, state: { captured: true } })
+      if (saved) navigate(`/dream/${saved.id}`, { replace: true, state: { captured: true } })
+      else navigate('/dreams', { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {

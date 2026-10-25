@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, GitMerge, MoreHorizontal, Pencil, Search, Trash2, X } from 'lucide-react'
+import { Check, GitMerge, MoreHorizontal, Pencil, Search, Tags, Trash2, X } from 'lucide-react'
 import clsx from 'clsx'
 import { deleteTag, fetchTags, mergeTags, renameTag, setTagColor } from '@/lib/api'
 import type { Tag } from '@/lib/types'
 import { TAG_COLOR_PRESETS, tagChipStyle } from '@/lib/format'
 import { EmptyState, ErrorBox, Modal, PageHeader, Skeleton } from '@/components/ui'
+import { PhraseTagger } from '@/components/PhraseTagger'
 
 export function TagsPage() {
   const [tags, setTags] = useState<Tag[] | null>(null)
@@ -18,6 +19,7 @@ export function TagsPage() {
   const [mergeInto, setMergeInto] = useState('')
   const [colorFor, setColorFor] = useState<string | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
+  const [phraseOpen, setPhraseOpen] = useState(false)
 
   const load = () => fetchTags().then(setTags).catch(setError)
   useEffect(() => { void load() }, [])
@@ -56,7 +58,11 @@ export function TagsPage() {
 
   return (
     <div className="fade-in">
-      <PageHeader title="Tags" subtitle={tags ? `${tags.length} tags` : 'Loading…'} />
+      <PageHeader
+        title="Tags"
+        subtitle={tags ? `${tags.length} tags` : 'Loading…'}
+        actions={<button className="btn" onClick={() => setPhraseOpen(true)}><Tags size={16} /> Tag by phrase</button>}
+      />
       <p className="text-sm text-muted -mt-2 mb-4">Click the swatch to color a tag. Merge two names that mean the same thing (Pau → Paula).</p>
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
@@ -125,6 +131,8 @@ export function TagsPage() {
           ))}
         </div>
       )}
+
+      {phraseOpen && <PhraseTagger onClose={() => setPhraseOpen(false)} onDone={() => void load()} />}
 
       {confirm && (
         <Modal onClose={() => setConfirm(null)}>

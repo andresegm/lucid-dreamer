@@ -2,6 +2,8 @@ import { supabase } from './supabase'
 import type { Dream, DreamFilters, DreamInput, DreamLite, Tag } from './types'
 
 const DREAM_SELECT = '*, dream_tags(tags(id, name, color))'
+/** Dreams minus any carrying a locked tag. Every read goes here; writes go to `dreams`. */
+const VISIBLE = 'visible_dreams'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapDream(row: any): Dream {
@@ -33,7 +35,7 @@ export async function fetchDreams(
   const ids = await dreamIdsForTags(filters.tags, filters.tagMode)
   if (ids !== null && ids.length === 0) return { rows: [], count: 0 }
 
-  let q = supabase.from('dreams').select(DREAM_SELECT, { count: 'exact' })
+  let q = supabase.from(VISIBLE).select(DREAM_SELECT, { count: 'exact' })
 
   if (ids) q = q.in('id', ids)
   if (filters.from) q = q.gte('date', filters.from)
@@ -80,7 +82,7 @@ export async function fetchDreamsAll(filters: DreamFilters, pageSize = 200): Pro
 }
 
 export async function fetchDream(id: string): Promise<Dream | null> {
-  const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).eq('id', id).maybeSingle()
+  const { data, error } = await supabase.from(VISIBLE).select(DREAM_SELECT).eq('id', id).maybeSingle()
   if (error) throw error
   return data ? mapDream(data) : null
 }
@@ -92,7 +94,7 @@ export async function fetchDream(id: string): Promise<Dream | null> {
  */
 export async function fetchRandomDream(excludeId?: string): Promise<Dream | null> {
   const { count, error: cErr } = await supabase
-    .from('dreams')
+    .from(VISIBLE)
     .select('id', { count: 'exact', head: true })
     .eq('entry_type', 'dream')
   if (cErr) throw cErr
@@ -109,7 +111,7 @@ export async function fetchRandomDream(excludeId?: string): Promise<Dream | null
 
 async function fetchDreamAtOffset(offset: number): Promise<Dream | null> {
   const { data, error } = await supabase
-    .from('dreams')
+    .from(VISIBLE)
     .select(DREAM_SELECT)
     .eq('entry_type', 'dream')
     .order('id', { ascending: true })
@@ -121,7 +123,7 @@ async function fetchDreamAtOffset(offset: number): Promise<Dream | null> {
 
 export async function fetchAllLite(): Promise<DreamLite[]> {
   const { data, error } = await supabase
-    .from('dreams')
+    .from(VISIBLE)
     .select('id, date, lucidity, induction_method, entry_type, favorite, dream_tags(tags(id, name))')
     .order('date', { ascending: true })
   if (error) throw error
@@ -137,14 +139,17 @@ export async function fetchAllLite(): Promise<DreamLite[]> {
   }))
 }
 
-export async function fetchTags(): Promise<Tag[]> {
-  const { data, error } = await supabase.from('tags_with_counts').select('*').order('name', { ascending: true })
+/** Unlocked tags only, unless `includeLocked` (Settings, and to keep auto-tag away from locked names). */
+export async function fetchTags(includeLocked = false): Promise<Tag[]> {
+  let q = supabase.from('tags_with_counts').select('*').order('name', { ascending: true })
+  if (!includeLocked) q = q.eq('locked', false)
+  const { data, error } = await q
   if (error) throw error
   return (data ?? []) as Tag[]
 }
 
 export async function fetchTag(id: string): Promise<Tag | null> {
-  const { data, error } = await supabase.from('tags_with_counts').select('*').eq('id', id).maybeSingle()
+  const { data, error } = await supabase.from('tags_with_counts').select('*').eq('id', id).eq('locked', false).maybeSingle()
   if (error) throw error
   return (data as Tag | null) ?? null
 }
@@ -153,7 +158,7 @@ export async function fetchTag(id: string): Promise<Tag | null> {
 export async function ensureTags(names: string[]): Promise<Tag[]> {
   const clean = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)))
   if (!clean.length) return []
-  const { data: existing, error } = await supabase.from('tags').select('id, name, color')
+  const { data: existing, error } = await supabase.from('tags').select('id, name, color, locked')
   if (error) throw error
   const byLower = new Map((existing ?? []).map((t) => [t.name.toLowerCase(), t as Tag]))
   const missing = clean.filter((n) => !byLower.has(n.toLowerCase()))
@@ -161,7 +166,7 @@ export async function ensureTags(names: string[]): Promise<Tag[]> {
     const { data: created, error: e2 } = await supabase
       .from('tags')
       .insert(missing.map((name) => ({ name })))
-      .select('id, name, color')
+      .select('id, name, color, locked')
     if (e2) throw e2
     for (const t of created ?? []) byLower.set(t.name.toLowerCase(), t as Tag)
   }
@@ -177,12 +182,13 @@ async function setDreamTags(dreamId: string, tagIds: string[]) {
   }
 }
 
-export async function createDream(input: DreamInput, source = 'app'): Promise<Dream> {
+/** Returns null when a locked tag hides the saved dream. */
+export async function createDream(input: DreamInput, source = 'app'): Promise<Dream | null> {
   const { tagIds, ...fields } = input
   const { data, error } = await supabase.from('dreams').insert({ ...fields, source }).select('id').single()
   if (error) throw error
   await setDreamTags(data.id, tagIds)
-  return (await fetchDream(data.id))!
+  return fetchDream(data.id)
 }
 
 export type ImportDraft = Omit<DreamInput, 'tagIds'> & { tagNames: string[] }
@@ -223,12 +229,13 @@ export async function importEntries(rows: ImportDraft[]): Promise<{ created: num
   return { created, skipped }
 }
 
-export async function updateDream(id: string, input: DreamInput): Promise<Dream> {
+/** Returns null when a locked tag hides the saved dream. */
+export async function updateDream(id: string, input: DreamInput): Promise<Dream | null> {
   const { tagIds, ...fields } = input
   const { error } = await supabase.from('dreams').update(fields).eq('id', id)
   if (error) throw error
   await setDreamTags(id, tagIds)
-  return (await fetchDream(id))!
+  return fetchDream(id)
 }
 
 export async function deleteDream(id: string): Promise<void> {
@@ -253,6 +260,11 @@ export async function deleteTag(id: string): Promise<void> {
 
 export async function setTagColor(id: string, color: string | null): Promise<void> {
   const { error } = await supabase.from('tags').update({ color }).eq('id', id)
+  if (error) throw error
+}
+
+export async function setTagLocked(id: string, locked: boolean): Promise<void> {
+  const { error } = await supabase.from('tags').update({ locked }).eq('id', id)
   if (error) throw error
 }
 
@@ -299,7 +311,7 @@ export async function fetchRelatedDreams(
   if (!ranked.length) return []
 
   const { data: rows, error: e2 } = await supabase
-    .from('dreams')
+    .from(VISIBLE)
     .select(DREAM_SELECT)
     .in('id', ranked.map(([id]) => id))
     .eq('entry_type', 'dream')
@@ -312,6 +324,21 @@ export async function fetchRelatedDreams(
     .sort((a, b) => b[1].length - a[1].length || dateOf(b[0]).localeCompare(dateOf(a[0])))
     .slice(0, limit)
     .map(([id, shared]) => ({ dream: mapped.get(id)!, shared }))
+}
+
+/** Title and body of every visible entry, for phrase tagging. Paged past the API row cap. */
+export async function fetchDreamTexts(): Promise<{ id: string; title: string; description: string }[]> {
+  const out: { id: string; title: string; description: string }[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from(VISIBLE)
+      .select('id, title, description')
+      .order('id', { ascending: true })
+      .range(from, from + 999)
+    if (error) throw error
+    out.push(...(data ?? []))
+    if (!data || data.length < 1000) return out
+  }
 }
 
 /** Add tags without replacing ones already on the dream. */
@@ -357,7 +384,7 @@ export async function saveProfile(patch: { settings?: unknown; stats?: unknown }
 
 /** Everything, for export. */
 export async function fetchAllFull(): Promise<Dream[]> {
-  const { data, error } = await supabase.from('dreams').select(DREAM_SELECT).order('date', { ascending: true })
+  const { data, error } = await supabase.from(VISIBLE).select(DREAM_SELECT).order('date', { ascending: true })
   if (error) throw error
   return (data ?? []).map(mapDream)
 }
