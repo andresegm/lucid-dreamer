@@ -7,6 +7,7 @@ import type { Tag } from '@/lib/types'
 import { TAG_COLOR_PRESETS, tagChipStyle } from '@/lib/format'
 import { EmptyState, ErrorBox, Modal, PageHeader, Skeleton } from '@/components/ui'
 import { PhraseTagger } from '@/components/PhraseTagger'
+import { DreamSigns } from '@/components/DreamSigns'
 
 export function TagsPage() {
   const [tags, setTags] = useState<Tag[] | null>(null)
@@ -20,6 +21,7 @@ export function TagsPage() {
   const [colorFor, setColorFor] = useState<string | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const [phraseOpen, setPhraseOpen] = useState(false)
+  const [phraseSeed, setPhraseSeed] = useState('')
 
   const load = () => fetchTags().then(setTags).catch(setError)
   useEffect(() => { void load() }, [])
@@ -61,9 +63,10 @@ export function TagsPage() {
       <PageHeader
         title="Tags"
         subtitle={tags ? `${tags.length} tags` : 'Loading…'}
-        actions={<button className="btn" onClick={() => setPhraseOpen(true)}><Tags size={16} /> Tag by phrase</button>}
+        actions={<button className="btn" onClick={() => { setPhraseSeed(''); setPhraseOpen(true) }}><Tags size={16} /> Tag by phrase</button>}
       />
       <p className="text-sm text-muted -mt-2 mb-4">Click the swatch to color a tag. Merge two names that mean the same thing (Pau → Paula).</p>
+      {tags && <DreamSigns tags={tags} onPick={(word) => { setPhraseSeed(word); setPhraseOpen(true) }} />}
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
         <input className="input pl-9" placeholder="Find a tag…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -132,7 +135,7 @@ export function TagsPage() {
         </div>
       )}
 
-      {phraseOpen && <PhraseTagger onClose={() => setPhraseOpen(false)} onDone={() => void load()} />}
+      {phraseOpen && <PhraseTagger initialPhrase={phraseSeed} onClose={() => setPhraseOpen(false)} onDone={() => void load()} />}
 
       {confirm && (
         <Modal onClose={() => setConfirm(null)}>

@@ -1,20 +1,42 @@
 import { Link } from 'react-router-dom'
-import { Star, StickyNote } from 'lucide-react'
+import { Check, Star, StickyNote } from 'lucide-react'
 import clsx from 'clsx'
 import type { Dream } from '@/lib/types'
-import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/lib/format'
+import { excerptAround, fmtDate, lucidityClass, lucidityLabel, tagChipStyle } from '@/lib/format'
+import { Highlight } from '@/components/Highlight'
 import { groupNights } from '@/lib/nights'
 
-export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void; hideDate?: boolean }) {
+export interface CardSelection {
+  picked: Set<string>
+  onToggle: (d: Dream) => void
+}
+
+export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate, selection, highlight }: { dream: Dream; showPreview: boolean; onToggleFavorite?: (d: Dream) => void; hideDate?: boolean; selection?: CardSelection; highlight?: string[] }) {
   const isNote = dream.entry_type === 'note'
+  const picked = selection?.picked.has(dream.id) ?? false
   return (
-    <Link to={`/dream/${dream.id}`} className="card card-hover block fade-in group min-w-0 max-w-full overflow-hidden">
+    <Link
+      to={`/dream/${dream.id}`}
+      className={clsx('card card-hover block fade-in group min-w-0 max-w-full overflow-hidden', picked && 'border-[var(--accent)]')}
+      onClick={selection ? (e) => { e.preventDefault(); selection.onToggle(dream) } : undefined}
+      role={selection ? 'checkbox' : undefined}
+      aria-checked={selection ? picked : undefined}
+    >
       <div className="flex items-start gap-3 min-w-0">
+        {selection && (
+          <span
+            className="shrink-0 mt-1 h-5 w-5 rounded-md flex items-center justify-center"
+            style={{ border: `1.5px solid ${picked ? 'var(--accent)' : 'var(--border-strong)'}`, background: picked ? 'var(--accent)' : 'transparent' }}
+            aria-hidden
+          >
+            {picked && <Check size={14} color="var(--accent-contrast)" />}
+          </span>
+        )}
         {!hideDate && <DateBadge iso={dream.date} />}
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex items-start gap-2 min-w-0">
-            <h3 className="font-semibold leading-snug flex-1 min-w-0 truncate">{dream.title || 'Untitled'}</h3>
-            {onToggleFavorite && (
+            <h3 className="font-semibold leading-snug flex-1 min-w-0 truncate"><Highlight text={dream.title || 'Untitled'} terms={highlight} /></h3>
+            {onToggleFavorite && !selection && (
               <button
                 className={clsx('shrink-0 -m-1 p-1 rounded-lg transition-colors', dream.favorite ? 'text-lucid' : 'text-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60 hover:text-fg')}
                 onClick={(e) => {
@@ -40,7 +62,11 @@ export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { 
             ))}
             {dream.tags.length > 4 && <span className="chip text-faint">+{dream.tags.length - 4}</span>}
           </div>
-          {showPreview && dream.description && <p className="text-sm text-muted mt-2 leading-relaxed line-clamp-3 break-words">{excerpt(dream.description, 300)}</p>}
+          {showPreview && dream.description && (
+            <p className="text-sm text-muted mt-2 leading-relaxed line-clamp-3 break-words">
+              <Highlight text={excerptAround(dream.description, highlight, 300)} terms={highlight} />
+            </p>
+          )}
         </div>
       </div>
     </Link>
@@ -52,11 +78,15 @@ export function DreamNightList({
   showPreview,
   onToggleFavorite,
   grouped = true,
+  selection,
+  highlight,
 }: {
   dreams: Dream[]
   showPreview: boolean
   onToggleFavorite?: (d: Dream) => void
   grouped?: boolean
+  selection?: CardSelection
+  highlight?: string[]
 }) {
   const nights = grouped ? groupNights(dreams) : [{ date: '', items: dreams }]
   return (
@@ -75,6 +105,8 @@ export function DreamNightList({
                 dream={d}
                 showPreview={showPreview}
                 onToggleFavorite={onToggleFavorite}
+                selection={selection}
+                highlight={highlight}
                 hideDate={Boolean(night.date && night.items.length > 1 && i > 0)}
               />
             ))}

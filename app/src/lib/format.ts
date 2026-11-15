@@ -50,6 +50,27 @@ export function excerpt(text: string, max = 220): string {
   return t.length > max ? t.slice(0, max).trimEnd() + '…' : t
 }
 
+/** Like `excerpt`, but starts near the first search hit so the match is visible in a preview. */
+export function excerptAround(text: string, terms: string[] | undefined, max = 220): string {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (!terms?.length || t.length <= max) return excerpt(t, max)
+  const lower = t.toLowerCase()
+  const hits = terms.map((w) => lower.indexOf(w.toLowerCase())).filter((i) => i >= 0)
+  const first = hits.length ? Math.min(...hits) : 0
+  if (first < max * 0.6) return excerpt(t, max)
+  // Back up to a word boundary a little before the hit
+  let start = Math.max(0, first - 60)
+  const space = t.indexOf(' ', start)
+  if (space >= 0 && space < first) start = space + 1
+  const slice = t.slice(start, start + max).trimEnd()
+  return `…${slice}${start + max < t.length ? '…' : ''}`
+}
+
+/** Search box text → the words every result must contain. */
+export function searchTerms(q: string): string[] {
+  return Array.from(new Set(q.trim().toLowerCase().split(/\s+/).filter(Boolean))).slice(0, 8)
+}
+
 export function wordCount(text: string): number {
   const t = text.trim()
   return t ? t.split(/\s+/).length : 0

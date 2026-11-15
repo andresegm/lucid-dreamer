@@ -7,9 +7,9 @@ import { Modal, Spinner } from '@/components/ui'
 type Text = { id: string; title: string; description: string }
 
 /** Tag every entry whose title or text contains a word or exact phrase. Creates the tag if it's new. */
-export function PhraseTagger({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export function PhraseTagger({ onClose, onDone, initialPhrase = '' }: { onClose: () => void; onDone: () => void; initialPhrase?: string }) {
   const [texts, setTexts] = useState<Text[] | null>(null)
-  const [phrase, setPhrase] = useState('')
+  const [phrase, setPhrase] = useState(initialPhrase)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

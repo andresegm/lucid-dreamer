@@ -11,14 +11,14 @@ React + Vite + Tailwind in `app/`. Supabase for Postgres, Auth, and an optional 
 ## What’s in the app
 
 - **Home** — morning cue, tonight’s line, streak, recent dreams, 12-week recall
-- **Write now / New dream** — dump, full entry, or voice (2 recordings per UTC day, 5 minutes each)
-- **Dreams** — search, filters, same-night grouping; Tags from the header
+- **Write now / New dream** — dump, full entry, or voice (2 recordings per UTC day, 5 minutes each); a new entry written offline is kept on the device and uploads when the connection returns
+- **Dreams** — search that matches parts of words and tag names, filters, same-night grouping, multi-select to tag or delete, undo after a delete
 - **Tag page** — span, lucidity, related tags, the dreams themselves
-- **Sleep** — bed and wake times, alarm, a daily sleep-hygiene checklist, WBTB, awakenings, restedness, Garmin REM
+- **Sleep** — bed and wake times, alarm, a daily sleep-hygiene checklist, WBTB, awakenings, restedness, Garmin REM, and how each kind of night lines up with recall and lucidity
 - **Stats** — Recall, Lucid, Patterns (emotion radar, top tags, pairs)
 - **Learn** — lucid dreaming basics, sleep stages, recall, journaling, induction methods
-- **Tags** — rename, merge, color, and tag every entry containing a word or phrase
-- **Settings** — appearance (synced to your profile), auto-tag, auto-lock, locked tags, emotion-scan beta, export and import
+- **Tags** — rename, merge, color, tag every entry containing a word or phrase, and dream signs (recurring words that aren’t tags yet)
+- **Settings** — appearance (synced to your profile), auto-tag, auto-lock, locked tags with an optional passcode, calendar reminders, emotion-scan beta, export and import
 
 ## Run locally
 
@@ -55,6 +55,6 @@ RLS on every table; each row is limited to `auth.uid()`.
 
 - `dreams` — date, title, description, lucidity, induction, entry type, favorite
 - `tags` / `dream_tags` — names unique per user; a `locked` tag hides itself and its dreams
-- `visible_dreams` — dreams minus any with a locked tag; the app reads dreams only through this view
+- `visible_dreams` — dreams minus any with a locked tag, plus `search_text` and `tag_ids` for search and tag filters; the app reads dreams only through this view
 - `profiles` — settings and Stats filters
 - `voice_daily` — recordings used today (UTC), incremented only by `claim_voice_use()`

@@ -1,7 +1,9 @@
 import { supabase } from './supabase'
 import type { Dream, DreamFilters, DreamInput, DreamLite, Tag } from './types'
+import { searchTerms } from './format'
 
-const DREAM_SELECT = '*, dream_tags(tags(id, name, color))'
+const DREAM_SELECT =
+  'id, date, title, description, lucidity, induction_method, induction_notes, entry_type, favorite, source, created_at, updated_at, dream_tags(tags(id, name, color))'
 /** Dreams minus any carrying a locked tag. Every read goes here; writes go to `dreams`. */
 const VISIBLE = 'visible_dreams'
 
@@ -26,8 +28,8 @@ function mapDream(row: any): Dream {
     .map((dt: { tags: Tag | null }) => dt.tags)
     .filter(Boolean)
     .sort((a: Tag, b: Tag) => a.name.localeCompare(b.name))
-  const { dream_tags: _omit, search_vector: _omit2, ...rest } = row
-  void _omit; void _omit2
+  const { dream_tags: _omit, ...rest } = row
+  void _omit
   return { ...rest, tags } as Dream
 }
 
@@ -43,28 +45,52 @@ async function dreamIdsForTags(tagIds: string[], mode: 'any' | 'all'): Promise<s
   return Array.from(counts.entries()).filter(([, n]) => n >= tagIds.length).map(([id]) => id)
 }
 
+/** Flips to false once the database turns out to have an older supabase/tag-lock.sql, without search_text and tag_ids. */
+let richSearch = true
+
+const escapeLike = (s: string) => s.replace(/[\\%_]/g, '\\$&')
+
+/**
+ * One page of the list. With the current tag-lock.sql applied, search matches parts of words and tag names, and tag
+ * filters run in the database; without it, this falls back to whole-word search and id lists.
+ */
 export async function fetchDreams(
   filters: DreamFilters,
   page: number,
   pageSize: number,
 ): Promise<{ rows: Dream[]; count: number }> {
+  if (richSearch) {
+    const res = await dreamPage(filters, page, pageSize, null)
+    if (!res.error) return { rows: (res.data ?? []).map(mapDream), count: res.count ?? 0 }
+    if (res.error.code !== '42703') throw res.error
+    richSearch = false
+  }
   const ids = await dreamIdsForTags(filters.tags, filters.tagMode)
   if (ids !== null && ids.length === 0) return { rows: [], count: 0 }
+  const { data, error, count } = await dreamPage(filters, page, pageSize, { ids })
+  if (error) throw error
+  return { rows: (data ?? []).map(mapDream), count: count ?? 0 }
+}
 
+function dreamPage(filters: DreamFilters, page: number, pageSize: number, legacy: { ids: string[] | null } | null) {
   let q = supabase.from(VISIBLE).select(DREAM_SELECT, { count: 'exact' })
 
-  if (ids) q = q.in('id', ids)
   if (filters.from) q = q.gte('date', filters.from)
   if (filters.to) q = q.lte('date', filters.to)
   if (filters.lucidity.length) q = q.in('lucidity', filters.lucidity)
   if (filters.induction.length) q = q.in('induction_method', filters.induction)
   if (filters.favorites) q = q.eq('favorite', true)
   if (!filters.includeNotes) q = q.eq('entry_type', 'dream')
-  if (filters.q.trim()) {
-    const term = filters.q.trim()
-    // Full-text for multi-word / natural queries, fallback ilike for very short input
+
+  const term = filters.q.trim()
+  if (!legacy) {
+    if (filters.tags.length) q = filters.tagMode === 'all' ? q.contains('tag_ids', filters.tags) : q.overlaps('tag_ids', filters.tags)
+    // Every word must appear somewhere in the title, text, or tag names
+    for (const word of searchTerms(term)) q = q.ilike('search_text', `%${escapeLike(word)}%`)
+  } else {
+    if (legacy.ids) q = q.in('id', legacy.ids)
     if (term.length >= 3) q = q.textSearch('search_vector', term, { type: 'websearch', config: 'english' })
-    else {
+    else if (term) {
       // Quoted so a comma or bracket in the term can't break the filter
       const safe = term.replace(/["\\]/g, '')
       if (safe) q = q.or(`title.ilike."%${safe}%",description.ilike."%${safe}%"`)
@@ -83,11 +109,7 @@ export async function fetchDreams(
   }
 
   const from = (page - 1) * pageSize
-  q = q.range(from, from + pageSize - 1)
-
-  const { data, error, count } = await q
-  if (error) throw error
-  return { rows: (data ?? []).map(mapDream), count: count ?? 0 }
+  return q.range(from, from + pageSize - 1)
 }
 
 /** Every row matching the filters, across pages. */
@@ -206,13 +228,23 @@ async function setDreamTags(dreamId: string, tagIds: string[]) {
   }
 }
 
-/** Returns null when a locked tag hides the saved dream. */
-export async function createDream(input: DreamInput, source = 'app'): Promise<Dream | null> {
+/**
+ * Returns null when a locked tag hides the saved dream.
+ * Pass `id` when the save may be retried (offline queue, undo): a row that already exists counts as saved.
+ */
+export async function createDream(
+  input: DreamInput,
+  source = 'app',
+  id?: string,
+  extra?: { created_at?: string },
+): Promise<Dream | null> {
   const { tagIds, ...fields } = input
-  const { data, error } = await supabase.from('dreams').insert({ ...fields, source }).select('id').single()
-  if (error) throw error
-  await setDreamTags(data.id, tagIds)
-  return fetchDream(data.id)
+  const row = { ...fields, source, ...(id ? { id } : {}), ...extra }
+  const { data, error } = await supabase.from('dreams').insert(row).select('id').single()
+  if (error && !(id && error.code === '23505')) throw error
+  const dreamId: string = data?.id ?? id!
+  await setDreamTags(dreamId, tagIds)
+  return fetchDream(dreamId)
 }
 
 export type ImportDraft = Omit<DreamInput, 'tagIds'> & { tagNames: string[] }
@@ -266,6 +298,32 @@ export async function updateDream(id: string, input: DreamInput): Promise<Dream 
 export async function deleteDream(id: string): Promise<void> {
   const { error } = await supabase.from('dreams').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function deleteDreams(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const { error } = await supabase.from('dreams').delete().in('id', ids)
+  if (error) throw error
+}
+
+/** Put a deleted dream back exactly as it was: same id, tags, and original date added. */
+export async function restoreDream(d: Dream): Promise<void> {
+  await createDream(
+    {
+      date: d.date,
+      title: d.title,
+      description: d.description,
+      lucidity: d.lucidity,
+      induction_method: d.induction_method,
+      induction_notes: d.induction_notes,
+      entry_type: d.entry_type,
+      favorite: d.favorite,
+      tagIds: d.tags.map((t) => t.id),
+    },
+    d.source,
+    d.id,
+    { created_at: d.created_at },
+  )
 }
 
 export async function setFavorite(id: string, favorite: boolean): Promise<void> {

@@ -22,6 +22,11 @@ export interface Settings {
   lockTimeoutMin: number // 0 = never auto-lock
   tonightText: string
   tonightWrittenOn: string | null
+  /** Salted SHA-256 of the locked-tags passcode; null when none is set. */
+  tagPinHash: string | null
+  tagPinSalt: string | null
+  wakeTime: string // HH:MM, for calendar reminders
+  bedTime: string
 }
 
 export interface StatsPrefs {
@@ -55,6 +60,10 @@ export const DEFAULT_SETTINGS: Settings = {
   lockTimeoutMin: 0,
   tonightText: '',
   tonightWrittenOn: null,
+  tagPinHash: null,
+  tagPinSalt: null,
+  wakeTime: '07:00',
+  bedTime: '22:30',
 }
 
 export const DEFAULT_STATS_PREFS: StatsPrefs = {
@@ -221,7 +230,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const updateStats = useCallback((patch: Partial<StatsPrefs>) => {
     setStatsPrefs((s) => ({ ...s, ...patch, series: patch.series ?? s.series }))
   }, [])
-  const reset = useCallback(() => setSettings(DEFAULT_SETTINGS), [])
+  // "Reset appearance" only: the passcode, reminder times and tonight's intention are not looks
+  const reset = useCallback(() => setSettings((s) => ({
+    ...s,
+    accent: DEFAULT_SETTINGS.accent,
+    theme: DEFAULT_SETTINGS.theme,
+    density: DEFAULT_SETTINGS.density,
+    pageSize: DEFAULT_SETTINGS.pageSize,
+    defaultSort: DEFAULT_SETTINGS.defaultSort,
+    showNotesInList: DEFAULT_SETTINGS.showNotesInList,
+    showPreview: DEFAULT_SETTINGS.showPreview,
+  })), [])
 
   const value = useMemo<Ctx>(
     () => ({ settings, statsPrefs, update, updateStats, reset }),

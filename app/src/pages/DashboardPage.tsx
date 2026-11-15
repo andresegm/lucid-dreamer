@@ -11,6 +11,7 @@ import { useSettings } from '@/lib/settings'
 import { SLEEP_CHECKLIST, checklistDone, fetchSleepLog, fmtMinutes, timeInBed, type SleepLog } from '@/lib/sleep'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
 import { fmtDate, todayISO } from '@/lib/format'
+import { onDreamsChanged } from '@/lib/toast'
 import { DreamNightList } from '@/components/DreamCard'
 import { MorningCue } from '@/components/RecallTips'
 import { ErrorBox, Kpi, Skeleton } from '@/components/ui'
@@ -32,6 +33,8 @@ export function DashboardPage() {
   const [voiceLeft, setVoiceLeft] = useState<number | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [randomBusy, setRandomBusy] = useState(false)
+  const [changes, setChanges] = useState(0)
+  useEffect(() => onDreamsChanged(() => setChanges((n) => n + 1)), [])
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +51,7 @@ export function DashboardPage() {
       })
       .catch((e) => { if (!cancelled) setError(e) })
     return () => { cancelled = true }
-  }, [settings.showNotesInList])
+  }, [settings.showNotesInList, changes])
 
   const today = todayISO()
   const cue = useMemo<RecallContext | null>(() => {

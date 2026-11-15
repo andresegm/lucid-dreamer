@@ -3,9 +3,19 @@
 alter table public.tags add column if not exists locked boolean not null default false;
 
 -- The app reads dreams only through this view, so a locked dream can't be listed, searched, filtered, or opened.
+-- search_text and tag_ids let search match parts of words and tag names, and let tag filters run in the database.
 create or replace view public.visible_dreams
   with (security_invoker = true) as
-  select d.*
+  select d.*,
+    lower(
+      coalesce(d.title, '') || ' ' || coalesce(d.description, '') || ' ' || coalesce((
+        select string_agg(t.name, ' ')
+        from public.dream_tags dt
+        join public.tags t on t.id = dt.tag_id
+        where dt.dream_id = d.id
+      ), '')
+    ) as search_text,
+    coalesce((select array_agg(dt.tag_id) from public.dream_tags dt where dt.dream_id = d.id), '{}'::uuid[]) as tag_ids
   from public.dreams d
   where not exists (
     select 1

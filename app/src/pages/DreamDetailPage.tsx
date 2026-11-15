@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Pencil, Share2, Star, StickyNote, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
-import { deleteDream, fetchDream, fetchRelatedDreams } from '@/lib/api'
+import { deleteDream, fetchDream, fetchRelatedDreams, restoreDream } from '@/lib/api'
+import { offerUndoDelete } from '@/lib/toast'
 import { toggleOneFavorite } from '@/lib/favorite'
 import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
@@ -103,6 +104,7 @@ export function DreamDetailPage() {
     if (!dream) return
     try {
       await deleteDream(dream.id)
+      offerUndoDelete(1, () => restoreDream(dream))
       navigate('/dreams', { replace: true })
     } catch (e) {
       setConfirm(false)
@@ -237,7 +239,7 @@ export function DreamDetailPage() {
       {confirm && (
         <Modal onClose={() => setConfirm(false)}>
           <div className="font-semibold">Delete this dream?</div>
-          <p className="text-sm text-muted mt-1">“{dream.title}” will be permanently removed.</p>
+          <p className="text-sm text-muted mt-1">“{dream.title}” will be removed. You get a few seconds to undo.</p>
           <div className="flex justify-end gap-2 mt-4">
             <button className="btn" onClick={() => setConfirm(false)}>Cancel</button>
             <button className="btn btn-danger" onClick={remove}><Trash2 size={16} /> Delete</button>

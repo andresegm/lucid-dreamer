@@ -131,3 +131,46 @@ export function summarize(logs: SleepLog[]): SleepSummary {
     wakeSpread: wakes.length >= 2 ? Math.max(...wakes) - Math.min(...wakes) : null,
   }
 }
+
+export interface NightGroup { label: string; nights: number; recall: number; lucid: number }
+export interface SleepComparison { title: string; a: NightGroup; b: NightGroup; enough: boolean }
+
+/** Fewer nights than this on either side and a percentage is noise. */
+export const MIN_NIGHTS_TO_COMPARE = 3
+
+/**
+ * Splits logged nights in two (WBTB or not, alarm or not, …) and compares how often each side
+ * ended with a remembered dream and with a lucid one. A log's date is the morning, same as a dream's.
+ */
+export function compareSleepToDreams(
+  logs: SleepLog[],
+  dreams: { date: string; entry_type: string; lucidity: string }[],
+): SleepComparison[] {
+  const recalled = new Set<string>()
+  const lucid = new Set<string>()
+  for (const d of dreams) {
+    if (d.entry_type !== 'dream') continue
+    recalled.add(d.date)
+    if (d.lucidity !== 'non-lucid') lucid.add(d.date)
+  }
+  const group = (label: string, rows: SleepLog[]): NightGroup => ({
+    label,
+    nights: rows.length,
+    recall: rows.length ? rows.filter((l) => recalled.has(l.date)).length / rows.length : 0,
+    lucid: rows.length ? rows.filter((l) => lucid.has(l.date)).length / rows.length : 0,
+  })
+  const split = (title: string, aLabel: string, bLabel: string, test: (l: SleepLog) => boolean | null): SleepComparison => {
+    const a = group(aLabel, logs.filter((l) => test(l) === true))
+    const b = group(bLabel, logs.filter((l) => test(l) === false))
+    return { title, a, b, enough: a.nights >= MIN_NIGHTS_TO_COMPARE && b.nights >= MIN_NIGHTS_TO_COMPARE }
+  }
+  return [
+    split('Wake Back To Bed', 'WBTB nights', 'Other nights', (l) => l.wbtb),
+    split('Alarm', 'No alarm', 'Alarm', (l) => (l.alarm == null ? null : !l.alarm)),
+    split('Time in bed', '8 hours or more', 'Under 8 hours', (l) => {
+      const t = timeInBed(l.bed_time, l.wake_time)
+      return t == null ? null : t >= 480
+    }),
+    split('How rested you felt', 'Rested (4–5)', 'Tired (1–3)', (l) => (l.rested == null ? null : l.rested >= 4)),
+  ]
+}

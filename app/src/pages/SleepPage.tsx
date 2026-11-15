@@ -18,6 +18,7 @@ import {
 } from '@/lib/sleep'
 import { fmtDate, todayISO } from '@/lib/format'
 import { ErrorBox, Field, Kpi, PageHeader, Segmented, Spinner, UseToday } from '@/components/ui'
+import { SleepDreams } from '@/components/SleepDreams'
 
 const RESTED_LABELS = ['', 'Exhausted', 'Tired', 'Okay', 'Rested', 'Refreshed']
 
@@ -34,9 +35,11 @@ export function SleepPage() {
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  const [changes, setChanges] = useState(0)
 
   const loadHistory = useCallback(() => {
     fetchSleepLogs(30).then(setHistory).catch(setError)
+    setChanges((n) => n + 1)
   }, [])
 
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -293,6 +296,8 @@ export function SleepPage() {
           </ul>
         </section>
       )}
+
+      <SleepDreams refreshKey={changes} />
     </div>
   )
 }

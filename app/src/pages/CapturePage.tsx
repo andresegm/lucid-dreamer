@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles } from 'lucide-react'
-import { createDream, ensureTags, fetchTags } from '@/lib/api'
+import { fetchTags } from '@/lib/api'
+import { saveNewDream } from '@/lib/outbox'
+import { showToast } from '@/lib/toast'
 import { suggestTags } from '@/lib/autotag'
 import { titleFromDump, todayISO, wordCount } from '@/lib/format'
 import { EMOTIONS, isEmotion } from '@/lib/emotions'
@@ -66,8 +68,7 @@ export function CapturePage() {
     setSaving(true)
     setError(null)
     try {
-      const tags = await ensureTags(saveNames)
-      const saved = await createDream({
+      const { dream: saved, queued } = await saveNewDream(uid, {
         date,
         title: titleFromDump(text),
         description: text.trim(),
@@ -76,9 +77,10 @@ export function CapturePage() {
         induction_notes: null,
         entry_type: 'dream',
         favorite: false,
-        tagIds: tags.map((t) => t.id),
-      })
+      }, saveNames)
+      discarded.current = true
       writeCapture(uid, null)
+      if (queued) showToast('No connection. Saved on this device; it uploads when you’re back online.')
       if (saved) navigate(`/dream/${saved.id}`, { replace: true, state: { captured: true } })
       else navigate('/dreams', { replace: true })
     } catch (e) {

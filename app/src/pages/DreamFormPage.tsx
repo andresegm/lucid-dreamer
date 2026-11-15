@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Sparkles, Star } from 'lucide-react'
 import clsx from 'clsx'
-import { createDream, ensureTags, fetchDream, fetchTags, updateDream } from '@/lib/api'
+import { ensureTags, fetchDream, fetchTags, updateDream } from '@/lib/api'
+import { isOfflineError, saveNewDream } from '@/lib/outbox'
+import { showToast } from '@/lib/toast'
 import { INDUCTION_DESCRIPTIONS, INDUCTION_METHODS, LUCIDITY_OPTIONS, type Dream, type EntryType, type Lucidity, type Tag } from '@/lib/types'
 import { todayISO, wordCount } from '@/lib/format'
 import { appendTranscript } from '@/lib/voice'
@@ -157,9 +159,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     setSaving(true)
     setError(null)
     try {
-      const tags = await ensureTags(f.tags)
       const induction = f.induction_method === 'other' ? f.induction_custom.trim() || null : f.induction_method || null
-      const input = {
+      const fields = {
         date: f.date,
         title: f.title.trim(),
         description: f.description.trim(),
@@ -168,15 +169,24 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         induction_notes: f.induction_notes.trim() || null,
         entry_type: f.entry_type,
         favorite: f.favorite,
-        tagIds: tags.map((t) => t.id),
       }
-      const saved = mode === 'new' ? await createDream(input) : await updateDream(id!, input)
+      let saved: Dream | null
+      if (mode === 'new') {
+        const res = await saveNewDream(uid, fields, f.tags)
+        saved = res.dream
+        if (res.queued) showToast('No connection. Saved on this device; it uploads when you’re back online.')
+      } else {
+        const tags = await ensureTags(f.tags)
+        saved = await updateDream(id!, { ...fields, tagIds: tags.map((t) => t.id) })
+      }
+      discarded.current = true
       if (mode === 'new') writeFormDraft(uid, null)
       else if (id) writeEditDraft(uid, id, null)
-      // A locked tag hides the dream as soon as it's saved
+      // A locked tag hides the dream as soon as it's saved; an offline save has no page yet
       navigate(saved ? `/dream/${saved.id}` : '/dreams', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      if (isOfflineError(err)) setError('No connection. Your changes are kept as a draft on this device; save again when you’re back online.')
+      else setError(err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err))
     } finally {
       setSaving(false)
     }
