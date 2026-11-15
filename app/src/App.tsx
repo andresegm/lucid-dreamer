@@ -16,6 +16,8 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { CapturePage } from '@/pages/CapturePage'
 import { LearnPage } from '@/pages/LearnPage'
 import { SleepPage } from '@/pages/SleepPage'
+import { PracticePage } from '@/pages/PracticePage'
+import { NightPage } from '@/pages/NightPage'
 import { Spinner } from '@/components/ui'
 import { ErrorBoundary } from '@/lib/monitoring'
 
@@ -52,8 +54,11 @@ function Gate() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="learn" element={<LearnPage />} />
         <Route path="sleep" element={<SleepPage />} />
+        <Route path="practice" element={<PracticePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      {/* Outside the layout: nothing on screen at 4 a.m. but the session */}
+      <Route path="/night" element={<NightPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
     </Routes>
   )

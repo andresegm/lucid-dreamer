@@ -208,3 +208,42 @@ textarea.input { resize: vertical; line-height: 1.6; }
 
 input[type="date"].input, input[type="time"].input { color-scheme: dark; }
 :root[data-theme="light"] input[type="date"].input, :root[data-theme="light"] input[type="time"].input { color-scheme: light; }
+
+/* ---------- Night session: dim red on black, to keep night vision and sleepiness ---------- */
+@layer components {
+.night {
+  --bg: #000000;
+  --bg-elev: #0b0403;
+  --bg-elev-2: #150705;
+  --border: rgba(255, 90, 40, 0.16);
+  --border-strong: rgba(255, 90, 40, 0.34);
+  --text: #c2552b;
+  --text-muted: #8c3d20;
+  --text-faint: #5e2a17;
+  --accent: #7a2c14;
+  --accent-contrast: #e8a488;
+  --danger: #c2552b;
+  position: fixed; inset: 0; z-index: 40; overflow-y: auto;
+  background: var(--bg); color: var(--text); color-scheme: dark;
+}
+.night-inner {
+  max-width: 34rem; margin: 0 auto;
+  padding: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.75rem)) 1.25rem max(2rem, env(safe-area-inset-bottom, 0px));
+}
+.night .btn-primary { box-shadow: none; }
+.night-dream {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem; max-height: 42vh; overflow-y: auto;
+}
+.night-option {
+  text-align: left; width: 100%; font-size: .9rem; line-height: 1.5;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: .7rem .9rem;
+}
+.night-option[data-active="true"] { border-color: var(--text); background: var(--bg-elev-2); }
+.night-pulse {
+  width: 2.25rem; height: 2.25rem; border-radius: 9999px; background: var(--text);
+  animation: nightPulse 9s ease-in-out infinite;
+}
+}
+@keyframes nightPulse { 0%, 100% { transform: scale(.45); opacity: .35; } 45% { transform: scale(1); opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .night-pulse { animation: none; opacity: .6; } }

@@ -27,6 +27,12 @@ export interface Settings {
   tagPinSalt: string | null
   wakeTime: string // HH:MM, for calendar reminders
   bedTime: string
+  /** Evenings planned for WBTB + MILD, as weekday numbers (0 = Sunday). */
+  practiceNights: number[]
+  /** Reality checks to aim for each day. */
+  rcGoal: number
+  /** Reality-check calendar nudges per day; 0 = none. */
+  rcNudges: number
 }
 
 export interface StatsPrefs {
@@ -64,6 +70,9 @@ export const DEFAULT_SETTINGS: Settings = {
   tagPinSalt: null,
   wakeTime: '07:00',
   bedTime: '22:30',
+  practiceNights: [],
+  rcGoal: 5,
+  rcNudges: 0,
 }
 
 export const DEFAULT_STATS_PREFS: StatsPrefs = {
@@ -83,7 +92,9 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function mergeSettings(raw: unknown): Settings {
   if (!isRecord(raw)) return { ...DEFAULT_SETTINGS }
-  return { ...DEFAULT_SETTINGS, ...(raw as Partial<Settings>) }
+  const merged = { ...DEFAULT_SETTINGS, ...(raw as Partial<Settings>) }
+  if (!Array.isArray(merged.practiceNights)) merged.practiceNights = []
+  return merged
 }
 
 function mergeStats(raw: unknown): StatsPrefs {

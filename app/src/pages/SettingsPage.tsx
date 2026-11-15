@@ -9,7 +9,9 @@ import type { SortOrder } from '@/lib/types'
 import { Field, PageHeader, Segmented, Spinner, Switch } from '@/components/ui'
 import { EmotionScan } from '@/components/EmotionScan'
 import { LockedTags } from '@/components/LockedTags'
-import { downloadReminders } from '@/lib/reminders'
+import { downloadReminders, nudgeTimes } from '@/lib/reminders'
+import { fetchSleepLogs, type SleepLog } from '@/lib/sleep'
+import { suggestWbtb } from '@/lib/practice'
 import { fmtDate } from '@/lib/format'
 
 export function SettingsPage() {
@@ -19,11 +21,27 @@ export function SettingsPage() {
   const [importing, setImporting] = useState(false)
   const [importNote, setImportNote] = useState<string | null>(null)
 
+  const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([])
+
   useEffect(() => {
-    if (window.location.hash === '#emotion-scan') {
-      document.getElementById('emotion-scan')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const id = window.location.hash.slice(1)
+    if (id === 'emotion-scan' || id === 'reminders') {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [])
+
+  // Loaded up front: the calendar download has to start inside the tap, with nothing to wait for
+  useEffect(() => {
+    let cancelled = false
+    fetchSleepLogs(14).then((rows) => { if (!cancelled) setSleepLogs(rows) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  const wbtb = suggestWbtb(sleepLogs, settings.bedTime, settings.wakeTime)
+  const wbtbReminder = settings.practiceNights.length
+    ? { time: wbtb.alarm, weekdays: settings.practiceNights.map((d) => (d + wbtb.alarmDayOffset) % 7) }
+    : null
+  const nudges = nudgeTimes(settings.wakeTime, settings.bedTime, settings.rcNudges)
 
   async function exportAs(kind: 'json' | 'txt' | 'csv') {
     setExporting(kind)
@@ -141,7 +159,7 @@ export function SettingsPage() {
         <EmotionScan />
       </section>
 
-      <section className="card mb-4">
+      <section className="card mb-4" id="reminders">
         <h2 className="font-semibold mb-1">Reminders</h2>
         <p className="text-xs text-muted mb-4">
           A nudge to write when you wake, and one at night to set your intention. They live in your phone’s calendar, so they ring even when Lucid is closed.
@@ -154,10 +172,26 @@ export function SettingsPage() {
             <input type="time" className="input" value={settings.bedTime} onChange={(e) => e.target.value && update({ bedTime: e.target.value })} />
           </Field>
         </div>
-        <button type="button" className="btn btn-primary mt-4" onClick={() => downloadReminders(settings.wakeTime, settings.bedTime)}>
+        <Field label="Reality-check nudges per day" className="mt-4" hint={nudges.length ? `At ${nudges.join(', ')}.` : 'Fixed times fade into the background after a while; your dream signs on Practice work better. Nudges help at the start.'}>
+          <Segmented<string>
+            value={String(settings.rcNudges)}
+            onChange={(v) => update({ rcNudges: Number(v) })}
+            options={[{ value: '0', label: 'Off' }, { value: '3', label: '3' }, { value: '5', label: '5' }]}
+          />
+        </Field>
+        {wbtbReminder && (
+          <p className="text-xs text-muted mt-3">
+            Also adds a Wake Back To Bed alert at {wbtbReminder.time} after your {settings.practiceNights.length} practice {settings.practiceNights.length === 1 ? 'night' : 'nights'}. It opens the night session, but it is quiet, so set a real alarm as well.
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary mt-4"
+          onClick={() => downloadReminders({ wakeTime: settings.wakeTime, bedTime: settings.bedTime, rcNudges: settings.rcNudges, wbtb: wbtbReminder })}
+        >
           <CalendarPlus size={16} /> Add to my calendar
         </button>
-        <p className="text-xs text-faint mt-2">Opens two daily repeating events. To change the times later, delete those events in your calendar and add them again.</p>
+        <p className="text-xs text-faint mt-2">Opens repeating events with alerts. To change them later, delete those events in your calendar and add them again.</p>
       </section>
 
       <section className="card mb-4">

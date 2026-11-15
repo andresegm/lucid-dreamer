@@ -14,6 +14,7 @@ import { fmtDate, todayISO } from '@/lib/format'
 import { onDreamsChanged } from '@/lib/toast'
 import { DreamNightList } from '@/components/DreamCard'
 import { MorningCue } from '@/components/RecallTips'
+import { PracticeCard } from '@/components/PracticeCard'
 import { ErrorBox, Kpi, Skeleton } from '@/components/ui'
 import type { RecallContext } from '@/lib/recallTips'
 
@@ -128,6 +129,8 @@ export function DashboardPage() {
       </div>
 
       <TonightCard />
+
+      <PracticeCard recent={recent} />
 
       <MorningCue ctx={cue} />
 

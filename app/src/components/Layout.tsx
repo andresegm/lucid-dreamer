@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BedDouble, BookOpen, ChartPie, GraduationCap, Home, LogOut, Menu, Moon, Plus, Settings, Tags } from 'lucide-react'
+import { BedDouble, BookOpen, ChartPie, GraduationCap, Home, LogOut, Menu, Moon, Plus, Settings, Tags, Target } from 'lucide-react'
 import clsx from 'clsx'
 import { DraftBubble } from '@/components/DraftBubble'
 import { RandomDreamBubble } from '@/components/RandomDreamBubble'
@@ -12,6 +12,7 @@ import { useKeyboardInset } from '@/lib/useKeyboardInset'
 const SIDEBAR = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/dreams', label: 'Dreams', icon: BookOpen },
+  { to: '/practice', label: 'Practice', icon: Target },
   { to: '/sleep', label: 'Sleep', icon: BedDouble },
   { to: '/stats', label: 'Stats', icon: ChartPie },
   { to: '/learn', label: 'Learn', icon: GraduationCap },
@@ -27,6 +28,7 @@ const MOBILE = [
 
 /** Everything the phone bar has no room for. */
 const MORE = [
+  { to: '/practice', label: 'Practice', icon: Target },
   { to: '/sleep', label: 'Sleep', icon: BedDouble },
   { to: '/tags', label: 'Tags', icon: Tags },
   { to: '/learn', label: 'Learn', icon: GraduationCap },

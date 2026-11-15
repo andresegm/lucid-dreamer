@@ -17,6 +17,8 @@ import {
   type SleepLog,
 } from '@/lib/sleep'
 import { fmtDate, todayISO } from '@/lib/format'
+import { useAuth } from '@/lib/auth'
+import { loadPractice, practiceDays } from '@/lib/practice'
 import { ErrorBox, Field, Kpi, PageHeader, Segmented, Spinner, UseToday } from '@/components/ui'
 import { SleepDreams } from '@/components/SleepDreams'
 
@@ -27,6 +29,7 @@ const toYesNo = (v: boolean | null): YesNo => (v == null ? '' : v ? 'yes' : 'no'
 const fromYesNo = (v: YesNo): boolean | null => (v === '' ? null : v === 'yes')
 
 export function SleepPage() {
+  const uid = useAuth().session!.user.id
   const [params, setParams] = useSearchParams()
   const date = params.get('date') || todayISO()
   const [log, setLog] = useState<SleepLog | null>(null)
@@ -47,16 +50,18 @@ export function SleepPage() {
   useEffect(() => {
     let cancelled = false
     setLog(null)
-    fetchSleepLog(date)
-      .then((row) => {
+    Promise.all([fetchSleepLog(date), loadPractice(uid, date).catch(() => null)])
+      .then(([row]) => {
         if (cancelled) return
-        setLog(row ?? emptySleepLog(date))
+        // A night session logged for this morning already answers the WBTB question
+        const didSession = practiceDays(uid, date).some((d) => d.date === date && d.mild_at)
+        setLog(row ?? { ...emptySleepLog(date), wbtb: didSession ? true : null })
         setSaved(row)
         setEditing(!row)
       })
       .catch((e) => { if (!cancelled) setError(e) })
     return () => { cancelled = true }
-  }, [date])
+  }, [date, uid])
 
   const dirty = useMemo(() => {
     if (!log) return false
