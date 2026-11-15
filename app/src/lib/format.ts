@@ -26,11 +26,15 @@ export function fmtDateRange(start: string, end: string): string {
   return `${format(a, 'MMM d, yyyy')} – ${format(b, 'MMM d, yyyy')}`
 }
 
-export function todayISO(): string {
-  const d = new Date()
+/** `YYYY-MM-DD` for the date as the user's clock shows it (toISOString would shift it to UTC). */
+export function localISO(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${m}-${day}`
+}
+
+export function todayISO(): string {
+  return localISO(new Date())
 }
 
 export function lucidityClass(l: Lucidity): string {

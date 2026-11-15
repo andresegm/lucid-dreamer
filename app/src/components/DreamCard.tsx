@@ -16,7 +16,7 @@ export function DreamCard({ dream, showPreview, onToggleFavorite, hideDate }: { 
             <h3 className="font-semibold leading-snug flex-1 min-w-0 truncate">{dream.title || 'Untitled'}</h3>
             {onToggleFavorite && (
               <button
-                className={clsx('shrink-0 -m-1 p-1 rounded-lg transition-colors', dream.favorite ? 'text-lucid' : 'text-faint opacity-0 group-hover:opacity-100 hover:text-fg')}
+                className={clsx('shrink-0 -m-1 p-1 rounded-lg transition-colors', dream.favorite ? 'text-lucid' : 'text-faint opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60 hover:text-fg')}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()

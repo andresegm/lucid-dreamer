@@ -32,8 +32,8 @@ export function SettingsPage() {
         content = JSON.stringify(dreams, null, 2); mime = 'application/json'
       } else if (kind === 'csv') {
         const esc = (s: unknown) => `"${String(s ?? '').replace(/"/g, '""')}"`
-        const head = ['date', 'title', 'lucidity', 'induction_method', 'entry_type', 'favorite', 'tags', 'description']
-        content = [head.join(','), ...dreams.map((d) => [d.date, d.title, d.lucidity, d.induction_method ?? '', d.entry_type, d.favorite, d.tags.map((t) => t.name).join('; '), d.description].map(esc).join(','))].join('\n')
+        const head = ['date', 'title', 'lucidity', 'induction_method', 'induction_notes', 'entry_type', 'favorite', 'tags', 'description']
+        content = [head.join(','), ...dreams.map((d) => [d.date, d.title, d.lucidity, d.induction_method ?? '', d.induction_notes ?? '', d.entry_type, d.favorite, d.tags.map((t) => t.name).join('; '), d.description].map(esc).join(','))].join('\n')
         mime = 'text/csv'
       } else {
         content = dreams.map((d) => `${fmtDate(d.date, 'dd.MM.yyyy')}  |  ${d.title}  (${d.entry_type === 'note' ? 'Note' : d.lucidity}${d.induction_method ? ' · ' + d.induction_method : ''})${d.favorite ? ' ★' : ''}\n${d.tags.length ? 'Tags: ' + d.tags.map((t) => t.name).join(', ') + '\n' : ''}\n${d.description}\n\n${'-'.repeat(70)}\n`).join('\n')

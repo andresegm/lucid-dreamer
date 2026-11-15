@@ -10,7 +10,7 @@ import { suggestTags, type Suggestion } from '@/lib/autotag'
 import { useSettings } from '@/lib/settings'
 import { useAuth } from '@/lib/auth'
 import { formDraftOpen, readEditDraft, readFormDraft, writeEditDraft, writeFormDraft, type DreamFormDraft } from '@/lib/drafts'
-import { Field, Segmented, Spinner, UseToday } from '@/components/ui'
+import { ErrorBox, Field, Segmented, Spinner, UseToday } from '@/components/ui'
 import { TagPicker } from '@/components/TagPicker'
 import { EmotionChips } from '@/components/EmotionChips'
 import { GrowingTextarea } from '@/components/GrowingTextarea'
@@ -45,6 +45,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const [editBase, setEditBase] = useState<{ id: string; form: FormState } | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [fieldFocused, setFieldFocused] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const dreamTa = useRef<HTMLTextAreaElement>(null)
@@ -66,6 +67,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     if (mode !== 'edit' || !id) return
     let cancelled = false
     setLoading(true)
+    setLoadError(null)
     setEditBase(null)
     fetchDream(id)
       .then((d) => {
@@ -79,7 +81,7 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
         setEditBase({ id, form: loaded })
         setF(draft && formDraftOpen(draft) ? formFromDraft(draft) : loaded)
       })
-      .catch((e) => { if (!cancelled) setError(String(e)) })
+      .catch((e) => { if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [mode, id, navigate, uid])
@@ -202,6 +204,8 @@ export function DreamFormPage({ mode }: { mode: 'new' | 'edit' }) {
     return (
       <div className="flex items-center gap-2 text-muted"><Spinner /> Loading…</div>
     )
+  // Saving from a blank form here would overwrite the real dream
+  if (loadError) return <ErrorBox error={loadError} retry={() => window.location.reload()} />
 
   return (
     <form

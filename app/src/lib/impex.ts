@@ -73,28 +73,42 @@ function parseJson(text: string): ImportDraft[] {
   return out
 }
 
-function parseCsv(text: string): ImportDraft[] {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.length)
-  if (lines.length < 2) return []
-  const cells = (line: string) => {
-    const out: string[] = []
-    let cur = '', q = false
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i]
+/** Rows of cells. Quoted cells may hold commas, quotes ("") and line breaks, as dream text does. */
+export function csvRows(text: string): string[][] {
+  const src = text.replace(/^\uFEFF/, '')
+  const rows: string[][] = []
+  let row: string[] = []
+  let cur = ''
+  let q = false
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    if (q) {
       if (c === '"') {
-        if (q && line[i + 1] === '"') { cur += '"'; i++ }
-        else q = !q
-      } else if (c === ',' && !q) { out.push(cur); cur = '' }
-      else cur += c
-    }
-    out.push(cur)
-    return out
+        if (src[i + 1] === '"') { cur += '"'; i++ }
+        else q = false
+      } else cur += c
+    } else if (c === '"') q = true
+    else if (c === ',') { row.push(cur); cur = '' }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && src[i + 1] === '\n') i++
+      row.push(cur)
+      cur = ''
+      if (row.length > 1 || row[0] !== '') rows.push(row)
+      row = []
+    } else cur += c
   }
-  const head = cells(lines[0]).map((h) => h.trim().toLowerCase())
+  row.push(cur)
+  if (row.length > 1 || row[0] !== '') rows.push(row)
+  return rows
+}
+
+function parseCsv(text: string): ImportDraft[] {
+  const rows = csvRows(text)
+  if (rows.length < 2) return []
+  const head = rows[0].map((h) => h.trim().toLowerCase())
   const idx = (name: string) => head.indexOf(name)
   const out: ImportDraft[] = []
-  for (const line of lines.slice(1)) {
-    const cols = cells(line)
+  for (const cols of rows.slice(1)) {
     const date = asDate(cols[idx('date')] ?? cols[0])
     if (!date) continue
     const tags = (cols[idx('tags')] ?? '').split(/[;,]/).map((t) => t.trim()).filter(Boolean)

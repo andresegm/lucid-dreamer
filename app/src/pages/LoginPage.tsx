@@ -16,6 +16,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [resent, setResent] = useState(false)
+  const [sentFor, setSentFor] = useState<'signup' | 'reset'>('signup')
   const emailRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { emailRef.current?.focus() }, [mode, recovery])
@@ -43,7 +44,7 @@ export function LoginPage() {
       const err = await requestReset(trimmed)
       setBusy(false)
       if (err) setError(err)
-      else setMode('check-email')
+      else { setSentFor('reset'); setMode('check-email') }
       return
     }
 
@@ -52,7 +53,7 @@ export function LoginPage() {
       if (password !== confirm) { setError('Passwords do not match.'); setBusy(false); return }
       const result = await signUp(trimmed, password)
       setBusy(false)
-      if (result === 'check-email') setMode('check-email')
+      if (result === 'check-email') { setSentFor('signup'); setMode('check-email') }
       else if (result) setError(result)
       return
     }
@@ -67,7 +68,7 @@ export function LoginPage() {
     if (!email.trim() || busy) return
     setBusy(true)
     setError(null)
-    const err = await resendSignup(email.trim())
+    const err = sentFor === 'reset' ? await requestReset(email.trim()) : await resendSignup(email.trim())
     setBusy(false)
     if (err) setError(err)
     else setResent(true)

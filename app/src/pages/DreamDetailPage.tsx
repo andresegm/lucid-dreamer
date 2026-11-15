@@ -7,7 +7,7 @@ import { toggleOneFavorite } from '@/lib/favorite'
 import type { Dream, Tag } from '@/lib/types'
 import { INDUCTION_DESCRIPTIONS, type InductionMethod } from '@/lib/types'
 import { excerpt, fmtDate, lucidityClass, lucidityLabel, tagChipStyle, wordCount } from '@/lib/format'
-import { ErrorBox, Modal, Skeleton } from '@/components/ui'
+import { EmptyState, ErrorBox, Modal, Skeleton } from '@/components/ui'
 
 function dreamShareText(dream: Dream): string {
   const title = dream.title?.trim() || 'Untitled'
@@ -56,15 +56,30 @@ export function DreamDetailPage() {
 
   useEffect(() => {
     if (!id) return
+    let cancelled = false
     setLoading(true)
+    setError(null)
+    setDream(null)
     setRelated([])
+    setConfirm(false)
     fetchDream(id)
-      .then(async (d) => {
+      .then((d) => {
+        if (cancelled) return
         setDream(d)
-        if (d?.tags.length) setRelated(await fetchRelatedDreams(d.id, d.tags.map((t) => t.id)))
+        setLoading(false)
+        // Related dreams are a bonus; the dream itself shouldn't wait on them or fail with them
+        if (d?.tags.length) {
+          fetchRelatedDreams(d.id, d.tags.map((t) => t.id))
+            .then((r) => { if (!cancelled) setRelated(r) })
+            .catch(() => {})
+        }
       })
-      .catch(setError)
-      .finally(() => setLoading(false))
+      .catch((e) => {
+        if (cancelled) return
+        setError(e)
+        setLoading(false)
+      })
+    return () => { cancelled = true }
   }, [id])
 
   useEffect(() => {
@@ -86,11 +101,24 @@ export function DreamDetailPage() {
 
   async function remove() {
     if (!dream) return
-    await deleteDream(dream.id)
-    navigate('/dreams', { replace: true })
+    try {
+      await deleteDream(dream.id)
+      navigate('/dreams', { replace: true })
+    } catch (e) {
+      setConfirm(false)
+      setError(e)
+    }
   }
 
   if (error) return <ErrorBox error={error} />
+  if (!loading && !dream)
+    return (
+      <EmptyState
+        title="This dream isn’t here"
+        hint="It may have been deleted, or it sits under a locked tag."
+        action={<Link to="/dreams" className="btn">All dreams</Link>}
+      />
+    )
   if (loading || !dream)
     return (
       <div className="max-w-3xl">

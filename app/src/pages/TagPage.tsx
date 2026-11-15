@@ -7,7 +7,7 @@ import { EMPTY_FILTERS, type Dream, type Lucidity, type Tag } from '@/lib/types'
 import { fmtDate, lucidityLabel, tagChipStyle } from '@/lib/format'
 import { useSettings } from '@/lib/settings'
 import { DreamCard } from '@/components/DreamCard'
-import { ErrorBox, Skeleton } from '@/components/ui'
+import { EmptyState, ErrorBox, Skeleton } from '@/components/ui'
 
 export function TagPage() {
   const { id } = useParams()
@@ -15,21 +15,28 @@ export function TagPage() {
   const { settings } = useSettings()
   const [tag, setTag] = useState<Tag | null>(null)
   const [dreams, setDreams] = useState<Dream[] | null>(null)
+  const [missing, setMissing] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
     if (!id) return
+    let cancelled = false
     setError(null)
     setDreams(null)
+    setTag(null)
+    setMissing(false)
     Promise.all([
       fetchTag(id),
       fetchDreamsAll({ ...EMPTY_FILTERS, tags: [id], includeNotes: true, sort: 'oldest' }),
     ])
       .then(([t, rows]) => {
+        if (cancelled) return
         setTag(t)
         setDreams(rows)
+        setMissing(!t)
       })
-      .catch(setError)
+      .catch((e) => { if (!cancelled) setError(e) })
+    return () => { cancelled = true }
   }, [id])
 
   const stats = useMemo(() => {
@@ -61,6 +68,14 @@ export function TagPage() {
   }
 
   if (error) return <ErrorBox error={error} />
+  if (missing)
+    return (
+      <EmptyState
+        title="This tag isn’t here"
+        hint="It may have been deleted or merged, or it’s locked."
+        action={<Link to="/tags" className="btn">All tags</Link>}
+      />
+    )
   if (!tag || !dreams)
     return (
       <div>

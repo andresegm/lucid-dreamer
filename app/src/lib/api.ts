@@ -5,6 +5,21 @@ const DREAM_SELECT = '*, dream_tags(tags(id, name, color))'
 /** Dreams minus any carrying a locked tag. Every read goes here; writes go to `dreams`. */
 const VISIBLE = 'visible_dreams'
 
+/** The API returns at most 1,000 rows per request, so anything meant to be complete is read in pages. */
+const API_PAGE = 1000
+
+async function fetchEvery<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; from += API_PAGE) {
+    const { data, error } = await page(from, from + API_PAGE - 1)
+    if (error) throw error
+    out.push(...(data ?? []))
+    if (!data || data.length < API_PAGE) return out
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapDream(row: any): Dream {
   const tags: Tag[] = (row.dream_tags ?? [])
@@ -19,8 +34,9 @@ function mapDream(row: any): Dream {
 /** Resolve tag filters to a set of dream ids (or null when no tag filter is active). */
 async function dreamIdsForTags(tagIds: string[], mode: 'any' | 'all'): Promise<string[] | null> {
   if (tagIds.length === 0) return null
-  const { data, error } = await supabase.from('dream_tags').select('dream_id, tag_id').in('tag_id', tagIds)
-  if (error) throw error
+  const data = await fetchEvery((from, to) =>
+    supabase.from('dream_tags').select('dream_id, tag_id').in('tag_id', tagIds).order('dream_id').order('tag_id').range(from, to),
+  )
   if (mode === 'any') return Array.from(new Set(data.map((r) => r.dream_id)))
   const counts = new Map<string, number>()
   for (const r of data) counts.set(r.dream_id, (counts.get(r.dream_id) ?? 0) + 1)
@@ -48,7 +64,11 @@ export async function fetchDreams(
     const term = filters.q.trim()
     // Full-text for multi-word / natural queries, fallback ilike for very short input
     if (term.length >= 3) q = q.textSearch('search_vector', term, { type: 'websearch', config: 'english' })
-    else q = q.or(`title.ilike.%${term}%,description.ilike.%${term}%`)
+    else {
+      // Quoted so a comma or bracket in the term can't break the filter
+      const safe = term.replace(/["\\]/g, '')
+      if (safe) q = q.or(`title.ilike."%${safe}%",description.ilike."%${safe}%"`)
+    }
   }
 
   switch (filters.sort) {
@@ -122,13 +142,17 @@ async function fetchDreamAtOffset(offset: number): Promise<Dream | null> {
 }
 
 export async function fetchAllLite(): Promise<DreamLite[]> {
-  const { data, error } = await supabase
-    .from(VISIBLE)
-    .select('id, date, lucidity, induction_method, entry_type, favorite, dream_tags(tags(id, name))')
-    .order('date', { ascending: true })
-  if (error) throw error
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((r: any) => ({
+  const data = await fetchEvery<any>((from, to) =>
+    supabase
+      .from(VISIBLE)
+      .select('id, date, lucidity, induction_method, entry_type, favorite, dream_tags(tags(id, name))')
+      .order('date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return data.map((r: any) => ({
     id: r.id,
     date: r.date,
     lucidity: r.lucidity,
@@ -195,9 +219,10 @@ export type ImportDraft = Omit<DreamInput, 'tagIds'> & { tagNames: string[] }
 
 /** Date + title + body only, for import dedupe. Avoids downloading tags and metadata. */
 async function fetchImportKeys(): Promise<Set<string>> {
-  const { data, error } = await supabase.from('dreams').select('date, title, description')
-  if (error) throw error
-  return new Set((data ?? []).map((d) => `${d.date}\n${d.title}\n${d.description}`))
+  const data = await fetchEvery((from, to) =>
+    supabase.from('dreams').select('date, title, description').order('id', { ascending: true }).range(from, to),
+  )
+  return new Set(data.map((d) => `${d.date}\n${d.title}\n${d.description}`))
 }
 
 export async function importEntries(rows: ImportDraft[]): Promise<{ created: number; skipped: number }> {
@@ -271,15 +296,11 @@ export async function setTagLocked(id: string, locked: boolean): Promise<void> {
 /** Move every dream from `fromId` onto `intoId`, then delete `fromId`. */
 export async function mergeTags(fromId: string, intoId: string): Promise<void> {
   if (fromId === intoId) return
-  const { data, error } = await supabase.from('dream_tags').select('dream_id').eq('tag_id', fromId)
-  if (error) throw error
-  const ids = Array.from(new Set((data ?? []).map((r) => r.dream_id)))
-  if (ids.length) {
-    const { error: insErr } = await supabase
-      .from('dream_tags')
-      .upsert(ids.map((dream_id) => ({ dream_id, tag_id: intoId })), { onConflict: 'dream_id,tag_id', ignoreDuplicates: true })
-    if (insErr) throw insErr
-  }
+  const data = await fetchEvery((from, to) =>
+    supabase.from('dream_tags').select('dream_id').eq('tag_id', fromId).order('dream_id').range(from, to),
+  )
+  const ids = Array.from(new Set(data.map((r) => r.dream_id)))
+  await appendDreamTags(ids.map((dream_id) => ({ dream_id, tag_id: intoId })))
   const { error: delErr } = await supabase.from('tags').delete().eq('id', fromId)
   if (delErr) throw delErr
 }
@@ -328,17 +349,9 @@ export async function fetchRelatedDreams(
 
 /** Title and body of every visible entry, for phrase tagging. Paged past the API row cap. */
 export async function fetchDreamTexts(): Promise<{ id: string; title: string; description: string }[]> {
-  const out: { id: string; title: string; description: string }[] = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from(VISIBLE)
-      .select('id, title, description')
-      .order('id', { ascending: true })
-      .range(from, from + 999)
-    if (error) throw error
-    out.push(...(data ?? []))
-    if (!data || data.length < 1000) return out
-  }
+  return fetchEvery((from, to) =>
+    supabase.from(VISIBLE).select('id, title, description').order('id', { ascending: true }).range(from, to),
+  )
 }
 
 /** Add tags without replacing ones already on the dream. */
@@ -384,7 +397,8 @@ export async function saveProfile(patch: { settings?: unknown; stats?: unknown }
 
 /** Everything, for export. */
 export async function fetchAllFull(): Promise<Dream[]> {
-  const { data, error } = await supabase.from(VISIBLE).select(DREAM_SELECT).order('date', { ascending: true })
-  if (error) throw error
-  return (data ?? []).map(mapDream)
+  const data = await fetchEvery((from, to) =>
+    supabase.from(VISIBLE).select(DREAM_SELECT).order('date', { ascending: true }).order('id', { ascending: true }).range(from, to),
+  )
+  return data.map(mapDream)
 }

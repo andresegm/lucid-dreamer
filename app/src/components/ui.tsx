@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Loader2, Moon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { todayISO } from '@/lib/format'
 
 export function Spinner({ className }: { className?: string }) {
@@ -96,9 +96,14 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 export function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,.55)' }} onClick={onClose}>
-      <div className="card max-w-sm w-full fade-in" onClick={(e) => e.stopPropagation()}>
+      <div className="card max-w-sm w-full fade-in" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { eachDayOfInterval, endOfWeek, format, parseISO, startOfWeek, subDays, subWeeks } from 'date-fns'
+import { eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek, subDays, subWeeks } from 'date-fns'
 import { BedDouble, BookOpen, Check, Dices, Flame, GraduationCap, Mic, Pencil, Plus, Sparkles, Tags } from 'lucide-react'
 import clsx from 'clsx'
 import { fetchAllLite, fetchDreams, fetchRandomDream } from '@/lib/api'
@@ -67,7 +67,7 @@ export function DashboardPage() {
   const kpis = useMemo(() => {
     if (!lite) return null
     const dreams = lite.filter((d) => d.entry_type === 'dream')
-    const weekStart = subDays(new Date(), 6)
+    const weekStart = startOfDay(subDays(new Date(), 6))
     const thisWeek = new Set(dreams.filter((d) => parseISO(d.date) >= weekStart).map((d) => d.date)).size
     const lucid = dreams.filter((d) => d.lucidity !== 'non-lucid').length
     const lucidPct = dreams.length ? Math.round((lucid / dreams.length) * 100) : 0
@@ -134,7 +134,7 @@ export function DashboardPage() {
         <Kpi icon={<Flame size={16} />} label="Streak" value={`${kpis.streak}d`} sub={kpis.streak ? 'keep the mornings going' : 'write tonight to start'} accent="#fb7185" />
         <Kpi icon={<BookOpen size={16} />} label="Nights this week" value={String(kpis.thisWeek)} sub={`${kpis.total.toLocaleString()} dreams in all`} />
         <Kpi icon={<Sparkles size={16} />} label="Lucid" value={`${kpis.lucidPct}%`} sub="of every dream" accent="var(--lucid)" />
-        <Kpi icon={<Mic size={16} />} label="Voice today" value={voiceLeft == null ? '—' : `${voiceLeft}`} sub={`${VOICE_DAILY_LIMIT} recordings / day`} />
+        <Kpi icon={<Mic size={16} />} label="Voice left today" value={voiceLeft == null ? '—' : `${voiceLeft}`} sub={`${VOICE_DAILY_LIMIT} recordings / day`} />
       </div>
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 mb-5">

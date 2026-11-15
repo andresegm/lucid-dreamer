@@ -5,6 +5,18 @@ import { useSettings } from './settings'
 
 const redirectTo = () => `${window.location.origin}/`
 
+/** Last time the journal was used, so auto-lock still applies after the tab was closed or the phone slept. */
+const ACTIVE_KEY = 'ldj.lastActive'
+function readActive(): number {
+  try { return Number(localStorage.getItem(ACTIVE_KEY)) || 0 } catch { return 0 }
+}
+function writeActive(at: number | null) {
+  try {
+    if (at == null) localStorage.removeItem(ACTIVE_KEY)
+    else localStorage.setItem(ACTIVE_KEY, String(at))
+  } catch { /* private mode */ }
+}
+
 export function authMessage(error: { message: string }): string {
   const m = error.message
   if (/invalid login credentials/i.test(m)) return 'Wrong email or password.'
@@ -49,21 +61,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  const signedIn = !!session
   useEffect(() => {
-    if (!session || settings.lockTimeoutMin <= 0 || recovery) return
+    if (loading) return
+    if (!signedIn || settings.lockTimeoutMin <= 0 || recovery) {
+      writeActive(null)
+      return
+    }
+    const limit = settings.lockTimeoutMin * 60_000
+    const lock = () => {
+      writeActive(null)
+      void supabase.auth.signOut()
+    }
+    const expired = () => {
+      const last = readActive()
+      return last > 0 && Date.now() - last > limit
+    }
+    if (expired()) {
+      lock()
+      return
+    }
     let t: number
+    let stamped = 0
     const reset = () => {
       window.clearTimeout(t)
-      t = window.setTimeout(() => supabase.auth.signOut(), settings.lockTimeoutMin * 60_000)
+      t = window.setTimeout(lock, limit)
+      const now = Date.now()
+      if (now - stamped > 5000) {
+        stamped = now
+        writeActive(now)
+      }
+    }
+    // Timers don't run while the phone sleeps, so check the clock on the way back
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (expired()) lock()
+      else reset()
     }
     const evs = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll']
     evs.forEach((e) => window.addEventListener(e, reset, { passive: true }))
+    document.addEventListener('visibilitychange', onVisible)
     reset()
     return () => {
       window.clearTimeout(t)
       evs.forEach((e) => window.removeEventListener(e, reset))
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [session, settings.lockTimeoutMin, recovery])
+  }, [loading, signedIn, settings.lockTimeoutMin, recovery])
 
   const value = useMemo<AuthCtx>(
     () => ({

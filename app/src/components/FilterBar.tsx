@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUpDown, Calendar, ChevronDown, Search, SlidersHorizontal, Star, X } from 'lucide-react'
 import clsx from 'clsx'
 import { INDUCTION_METHODS, LUCIDITY_OPTIONS, type DreamFilters, type Lucidity, type SortOrder, type Tag } from '@/lib/types'
-import { tagChipStyle } from '@/lib/format'
+import { localISO, tagChipStyle } from '@/lib/format'
 import { Segmented, Switch } from './ui'
 
 interface Props {
@@ -132,7 +132,7 @@ export function FilterBar({ filters, onChange, onClear, tags, activeCount }: Pro
                       if (v === 0) return onChange({ from: null, to: null })
                       const now = new Date()
                       const from = v === 'ty' ? new Date(now.getFullYear(), 0, 1) : new Date(now.getTime() - (v as number) * 86400000)
-                      onChange({ from: from.toISOString().slice(0, 10), to: null })
+                      onChange({ from: localISO(from), to: null })
                     }}
                   >
                     {label as string}
