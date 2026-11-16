@@ -7,6 +7,7 @@ import { addDays, loggedThisMorning, nextPlannedEvening, nightsDone, suggestWbtb
 import { usePractice } from '@/lib/usePractice'
 import { useSettings } from '@/lib/settings'
 import { signsFromTags, type DreamSign } from '@/lib/signs'
+import { useScannedSigns } from '@/lib/useScannedSigns'
 import { findNearMisses } from '@/lib/nearMiss'
 import { fmtDate, todayISO } from '@/lib/format'
 import type { Dream } from '@/lib/types'
@@ -19,6 +20,7 @@ export function PracticeCard({ recent }: { recent: Dream[] }) {
   const since = useMemo(() => addDays(today, -14), [today])
   const { uid, days } = usePractice(since)
   const [signs, setSigns] = useState<DreamSign[]>([])
+  const scanned = useScannedSigns()
   const [logs, setLogs] = useState<SleepLog[]>([])
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export function PracticeCard({ recent }: { recent: Dream[] }) {
       </div>
 
       <div className="border-t mt-4 pt-4" style={{ borderColor: 'var(--border)' }}>
-        <RealityCheck uid={uid} days={days} signs={signs} goal={settings.rcGoal} />
+        <RealityCheck uid={uid} days={days} signs={signs} scanned={scanned} goal={settings.rcGoal} />
       </div>
 
       {missed && (

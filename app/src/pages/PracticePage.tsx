@@ -19,6 +19,7 @@ import {
 import { usePractice } from '@/lib/usePractice'
 import { useSettings } from '@/lib/settings'
 import { signsFromTags, type DreamSign } from '@/lib/signs'
+import { useScannedSigns } from '@/lib/useScannedSigns'
 import { findNearMisses } from '@/lib/nearMiss'
 import { fmtDate, todayISO } from '@/lib/format'
 import { EMPTY_FILTERS, type Dream, type DreamLite } from '@/lib/types'
@@ -34,6 +35,7 @@ export function PracticePage() {
   const { settings, update } = useSettings()
   const { uid, days, setupNeeded, error } = usePractice(ALL_TIME)
   const [signs, setSigns] = useState<DreamSign[]>([])
+  const scanned = useScannedSigns()
   const [logs, setLogs] = useState<SleepLog[]>([])
   const [lite, setLite] = useState<DreamLite[]>([])
   const [recent, setRecent] = useState<Dream[] | null>(null)
@@ -192,7 +194,7 @@ export function PracticePage() {
         <p className="text-xs text-muted mb-4">
           A check only carries into dreams if you really doubt for a second. Tie it to things from your own dreams, not to the clock.
         </p>
-        <RealityCheck uid={uid} days={days} signs={signs} goal={settings.rcGoal} />
+        <RealityCheck uid={uid} days={days} signs={signs} scanned={scanned} goal={settings.rcGoal} />
 
         <div className="flex items-end gap-1.5 h-14 mt-5">
           {last7.map((d) => (
@@ -221,9 +223,24 @@ export function PracticePage() {
 
         <div className="border-t mt-4 pt-4" style={{ borderColor: 'var(--border)' }}>
           <div className="text-[11px] uppercase tracking-wide text-faint mb-2">Your dream signs</div>
-          {signs.length === 0 ? (
+          {scanned.length > 0 ? (
+            <>
+              <ul className="grid gap-2">
+                {scanned.map((s) => (
+                  <li key={s.name} className="text-sm">
+                    <span className="font-medium">{s.name}</span>
+                    {s.cue && <span className="text-muted block">{s.cue}</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-faint mt-3">
+                From your last dream-sign scan. Each day one of them is the trigger.{' '}
+                <Link to="/stats#lucid" className="text-accent hover:underline">See the dreams behind them or scan again</Link>
+              </p>
+            </>
+          ) : signs.length === 0 ? (
             <p className="text-sm text-muted">
-              None yet. A tag becomes a sign once it’s on two dreams. <Link to="/tags" className="text-accent hover:underline">Tags</Link> can find recurring words for you.
+              None yet. A tag becomes a sign once it’s on two dreams, or <Link to="/stats#lucid" className="text-accent hover:underline">scan your recent dreams</Link> for signs with a cue each.
             </p>
           ) : (
             <>
@@ -234,7 +251,10 @@ export function PracticePage() {
                   </Link>
                 ))}
               </div>
-              <p className="text-xs text-faint mt-2">Your most used tags. Each day one of them is the trigger.</p>
+              <p className="text-xs text-faint mt-2">
+                Your most used tags. Each day one of them is the trigger.{' '}
+                <Link to="/stats#lucid" className="text-accent hover:underline">Scan your recent dreams</Link> for signs with a cue each.
+              </p>
             </>
           )}
         </div>

@@ -1,7 +1,10 @@
 import { INDUCTION_METHODS, type Tag } from './types'
 import { parseLocalISO } from './format'
 
-/** Something that keeps showing up in your dreams, so it is worth a reality check when it shows up awake. */
+/**
+ * Something that keeps showing up in your dreams, so it is worth a reality check when it shows up awake.
+ * These come from tags and need no scan; the richer scanned signs live in signScan.ts and take over when there are any.
+ */
 export interface DreamSign { id: string; name: string; dreams: number }
 
 /** Tags about technique rather than dream content. */
@@ -16,8 +19,8 @@ export function signsFromTags(tags: Tag[], limit = 8): DreamSign[] {
     .map((t) => ({ id: t.id, name: t.name, dreams: t.dream_count ?? 0 }))
 }
 
-/** One sign per day, cycling through the list so the trigger stays fresh. */
-export function signOfDay(signs: DreamSign[], dateISO: string): DreamSign | null {
+/** One sign per day, cycling through the list so the trigger stays fresh. Works for tag signs and scanned ones. */
+export function signOfDay<T>(signs: T[], dateISO: string): T | null {
   if (!signs.length) return null
   const d = parseLocalISO(dateISO)
   const dayNumber = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000)

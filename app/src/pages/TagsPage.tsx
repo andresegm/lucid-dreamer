@@ -7,7 +7,7 @@ import type { Tag } from '@/lib/types'
 import { TAG_COLOR_PRESETS, tagChipStyle } from '@/lib/format'
 import { EmptyState, ErrorBox, Modal, PageHeader, Skeleton } from '@/components/ui'
 import { PhraseTagger } from '@/components/PhraseTagger'
-import { DreamSigns } from '@/components/DreamSigns'
+import { RecurringWords } from '@/components/RecurringWords'
 
 export function TagsPage() {
   const [tags, setTags] = useState<Tag[] | null>(null)
@@ -66,7 +66,7 @@ export function TagsPage() {
         actions={<button className="btn" onClick={() => { setPhraseSeed(''); setPhraseOpen(true) }}><Tags size={16} /> Tag by phrase</button>}
       />
       <p className="text-sm text-muted -mt-2 mb-4">Click the swatch to color a tag. Merge two names that mean the same thing (Pau → Paula).</p>
-      {tags && <DreamSigns tags={tags} onPick={(word) => { setPhraseSeed(word); setPhraseOpen(true) }} />}
+      {tags && <RecurringWords tags={tags} onPick={(word) => { setPhraseSeed(word); setPhraseOpen(true) }} />}
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
         <input className="input pl-9" placeholder="Find a tag…" value={q} onChange={(e) => setQ(e.target.value)} />

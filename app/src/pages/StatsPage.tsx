@@ -11,6 +11,7 @@ import { fmtDate, fmtDateRange } from '@/lib/format'
 import { EmotionRadar, HBarList, Legend, Ring, StackedBars, type Slice } from '@/components/charts'
 import { RecallCalendar } from '@/components/RecallCalendar'
 import { RecallTipsCard } from '@/components/RecallTips'
+import { DreamSigns } from '@/components/DreamSigns'
 import { ErrorBox, Kpi, PageHeader, Segmented, Skeleton, Switch } from '@/components/ui'
 
 const COLORS = { lucid: 'var(--lucid)', semi: 'var(--semi)', non: 'var(--nonlucid)' }
@@ -202,6 +203,8 @@ export function StatsPage() {
               )}
             </div>
           </div>
+
+          <DreamSigns />
 
           <div className="card">
             <div className="flex items-center justify-between mb-3">

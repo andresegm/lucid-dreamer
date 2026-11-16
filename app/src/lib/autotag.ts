@@ -126,7 +126,7 @@ uno unos usted vamos van varios veces ver vez voy sueno sueño soñe soñé soñ
 export interface RecurringWord { word: string; dreams: number; name: boolean }
 
 /**
- * Words that keep coming back across entries but aren't tags yet: candidate dream signs.
+ * Words that keep coming back across entries but aren't tags yet.
  * Counts entries, not mentions, so one long dream can't dominate. Likely names sort first.
  */
 export function recurringWords(

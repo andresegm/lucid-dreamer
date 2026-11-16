@@ -1,2 +1,5 @@
 [functions.transcribe]
 verify_jwt = true
+
+[functions.dream-signs]
+verify_jwt = true

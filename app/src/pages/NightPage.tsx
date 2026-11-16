@@ -5,6 +5,7 @@ import { fetchDreams } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { saveNewDream } from '@/lib/outbox'
 import { nearMissesIn } from '@/lib/nearMiss'
+import { useScannedSigns } from '@/lib/useScannedSigns'
 import { saveMildSession, sessionDate } from '@/lib/practice'
 import { fmtDate, titleFromDump, todayISO } from '@/lib/format'
 import { EMPTY_FILTERS } from '@/lib/types'
@@ -55,6 +56,12 @@ export function NightPage() {
 
   const dream = dreams?.[pick] ?? null
   const moments = useMemo(() => (dream ? nearMissesIn(dream.description, 4) : []), [dream])
+  // Scanned dream signs to rehearse: the ones found in this dream first, then the rest. None when offline or never scanned.
+  const scanned = useScannedSigns()
+  const signOptions = useMemo(() => {
+    const here = scanned.filter((s) => !!dream?.id && s.dream_ids.includes(dream.id))
+    return [...here.map((s) => ({ sign: s, here: true })), ...scanned.filter((s) => !here.includes(s)).map((s) => ({ sign: s, here: false }))].slice(0, 4)
+  }, [scanned, dream])
 
   async function saveDraft() {
     const text = draft.trim()
@@ -176,6 +183,22 @@ export function NightPage() {
                   >
                     <span className="text-[11px] uppercase tracking-wide text-faint block mb-0.5">{m.label}</span>
                     {m.text}
+                  </button>
+                ))}
+              </div>
+            )}
+            {signOptions.length > 0 && (
+              <div className="grid gap-2">
+                {signOptions.map(({ sign, here }) => (
+                  <button
+                    key={sign.name}
+                    type="button"
+                    className="night-option"
+                    data-active={cue === sign.name}
+                    onClick={() => setCue(sign.name)}
+                  >
+                    <span className="text-[11px] uppercase tracking-wide text-faint block mb-0.5">{here ? 'Your dream sign · in this dream' : 'Your dream sign'}</span>
+                    {sign.name}
                   </button>
                 ))}
               </div>
